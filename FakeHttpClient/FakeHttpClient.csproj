@@ -103,6 +103,8 @@
     <ItemGroup>
         <Compile Include="Program.cs" />
         <Compile Include="Properties\AssemblyInfo.cs" />
+        <Compile Include="ProxyRequest.cs" />
+        <Compile Include="TestDefinition.cs" />
     </ItemGroup>
     <ItemGroup>
       <None Include="packages.config" />
