@@ -1,9 +1,4 @@
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Net;
-using System.Text;
-using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace FakeHttpClient
@@ -50,27 +45,17 @@ namespace FakeHttpClient
 
             if (!string.IsNullOrEmpty(testFile))
             {
-                // TODO do file stuff
+
+                var tests = await TestDefinition.ReadAsync(testFile);
+                var actor = new Launcher(tests, interactive, proxyPort, proxyIp);
+                await actor.ExecuteAsync();
+
             }
             else
             {
                 var actor = new ProxyRequest(url, testName, interactive, proxyPort, proxyIp);
                 await actor.ExecuteAsync();
             }
-
-/*
-            var tests = new List<TestDefinition>();
-            try
-            {
-                var json = File.ReadAllText(testFile);
-                tests = JsonSerializer.Deserialize<List<TestDefinition>>(json);
-            }
-            catch (IOException e)
-            {
-                Console.WriteLine($"Error reading test file: {testFile} - {e.Message}");
-                return;
-            }
-*/
         }
     }
 }
