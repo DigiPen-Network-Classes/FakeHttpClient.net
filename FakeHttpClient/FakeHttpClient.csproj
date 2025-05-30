@@ -106,11 +106,15 @@
         <Compile Include="Properties\AssemblyInfo.cs" />
         <Compile Include="ProxyRequest.cs" />
         <Compile Include="TestDefinition.cs" />
+        <Compile Include="WriterFactory.cs" />
     </ItemGroup>
     <ItemGroup>
       <None Include="packages.config" />
     </ItemGroup>
     <ItemGroup>
+      <Content Include="multi.json">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
       <Content Include="single.json">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </Content>

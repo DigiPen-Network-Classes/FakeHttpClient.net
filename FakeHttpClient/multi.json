@@ -1,0 +1,30 @@
+[
+  {
+    "Name": "valid-google-noslash",
+    "Url": "http://www.google.com"
+  },
+  {
+    "Name": "valid-google-slash",
+    "Url": "http://www.google.com/"
+  },
+  {
+    "Name": "delay-dns-1",
+    "Url": "http://cs260.meancat.com/delay"
+  },
+  {
+    "Name": "delay-dns-2",
+    "Url": "http://cs260.meancat.com/delay"
+  },
+  {
+    "Name": "delay-dns-3",
+    "Url": "http://cs260.meancat.com/delay"
+  },
+  {
+    "Name": "delay-dns-4",
+    "Url": "http://cs260.meancat.com/delay"
+  },
+  {
+    "Name": "delay-ip-1",
+    "Url": "http://143.198.75.24/delay"
+  }
+]
