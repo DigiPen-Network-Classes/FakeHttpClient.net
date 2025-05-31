@@ -105,6 +105,7 @@
         <Compile Include="Program.cs" />
         <Compile Include="Properties\AssemblyInfo.cs" />
         <Compile Include="ProxyRequest.cs" />
+        <Compile Include="RunConfig.cs" />
         <Compile Include="TestDefinition.cs" />
         <Compile Include="WriterFactory.cs" />
     </ItemGroup>
@@ -112,12 +113,12 @@
       <None Include="packages.config" />
     </ItemGroup>
     <ItemGroup>
-      <Content Include="multi.json">
+      <EmbeddedResource Include="multi.json">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </Content>
-      <Content Include="single.json">
+      </EmbeddedResource>
+      <EmbeddedResource Include="single.json">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </Content>
+      </EmbeddedResource>
     </ItemGroup>
     <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
     <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">

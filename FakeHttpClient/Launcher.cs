@@ -35,7 +35,7 @@ namespace FakeHttpClient
             // ignore interactive
             var tasks = _tests.Select(test => ProxyRequest.ExecuteOne(test.Url, test.Name, false, _proxyPort, _proxyIp, token)).ToList();
 
-            var allExited = await WaitForAllOrTimeout(tasks, TimeSpan.FromSeconds(15));
+            var allExited = await WaitForAllOrTimeout(tasks, TimeSpan.FromSeconds(Program.TimeoutSeconds));
             if (allExited)
             {
                 // check for exceptions

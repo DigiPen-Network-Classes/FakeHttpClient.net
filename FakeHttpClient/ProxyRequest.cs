@@ -26,7 +26,7 @@ namespace FakeHttpClient
         private readonly int _proxyPort;
         private readonly string _proxyIp;
 
-        public ProxyRequest(string url, string name, TextWriter writer, int proxyPort, string proxyIp)
+        private ProxyRequest(string url, string name, TextWriter writer, int proxyPort, string proxyIp)
         {
             _url = url;
             _name = name;
@@ -35,9 +35,8 @@ namespace FakeHttpClient
             _proxyIp = proxyIp;
         }
 
-        public async Task ExecuteAsync(CancellationToken token)
+        private async Task ExecuteAsync(CancellationToken token)
         {
-            //var proxyIp = "10.211.55.3"; // "127.0.0.1"
             var request = (HttpWebRequest)WebRequest.Create(_url);
             request.Host = new Uri(_url).Host;
             request.ProtocolVersion = HttpVersion.Version10;
