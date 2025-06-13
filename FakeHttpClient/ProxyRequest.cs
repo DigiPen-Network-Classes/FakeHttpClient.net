@@ -8,17 +8,8 @@ using System.Threading.Tasks;
 
 namespace FakeHttpClient
 {
-    public class ProxyRequest
+    public class ProxyRequest : IDisposable
     {
-        public static async Task ExecuteOne(string url, string testName, bool interactive, int proxyPort, string proxyIp, CancellationToken cancellationToken)
-        {
-            using (var writer = WriterFactory.BuildWriter(interactive, url, testName))
-            {
-                var actor = new ProxyRequest(url, testName, writer, proxyPort, proxyIp);
-                await actor.ExecuteAsync(cancellationToken);
-            }
-        }
-
         private const long ThresholdMilliseconds = 7 * 1000; // seconds, longer than that indicates a problem
         private readonly string _url;
         private readonly string _name;
@@ -26,16 +17,16 @@ namespace FakeHttpClient
         private readonly int _proxyPort;
         private readonly string _proxyIp;
 
-        private ProxyRequest(string url, string name, TextWriter writer, int proxyPort, string proxyIp)
+        public ProxyRequest(bool interactive, string url, string name, int proxyPort, string proxyIp)
         {
             _url = url;
             _name = name;
-            _writer = writer;
             _proxyPort = proxyPort;
             _proxyIp = proxyIp;
+            _writer = interactive ? WriterFactory.BuildConsoleWriter() : WriterFactory.BuildFileWriter(url, name);
         }
 
-        private async Task ExecuteAsync(CancellationToken token)
+        public async Task ExecuteAsync(CancellationToken token)
         {
             var request = (HttpWebRequest)WebRequest.Create(_url);
             request.Host = new Uri(_url).Host;
@@ -81,6 +72,12 @@ namespace FakeHttpClient
 
                 throw;
             }
+        }
+
+        public void Dispose()
+        {
+            GC.SuppressFinalize(this);
+            _writer?.Dispose();
         }
     }
 }

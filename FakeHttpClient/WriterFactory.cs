@@ -7,14 +7,13 @@ namespace FakeHttpClient
 {
     public static class WriterFactory
     {
-
-        public static TextWriter BuildWriter(bool interactive, string url, string testName)
+        public static TextWriter BuildConsoleWriter()
         {
-            if (interactive)
-            {
-                return Console.Out;
-            }
+            return Console.Out;
+        }
 
+        public static TextWriter BuildFileWriter(string url, string testName)
+        {
             var safeFileName = BuildFileName(url, testName);
             var execDir = AppDomain.CurrentDomain.BaseDirectory;
             var path = Path.Combine(execDir, safeFileName);

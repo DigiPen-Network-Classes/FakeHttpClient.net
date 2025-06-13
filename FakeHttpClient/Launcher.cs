@@ -33,19 +33,29 @@ namespace FakeHttpClient
         {
             var token = tokenSource.Token;
             // ignore interactive
-            var tasks = _tests.Select(test => ProxyRequest.ExecuteOne(test.Url, test.Name, false, _proxyPort, _proxyIp, token)).ToList();
-
-            var allExited = await WaitForAllOrTimeout(tasks, TimeSpan.FromSeconds(Program.TimeoutSeconds));
-            if (allExited)
+            var requests = _tests.Select(test => new ProxyRequest(false, test.Url, test.Name, _proxyPort, _proxyIp)).ToList();
+            try
             {
-                // check for exceptions
-                await Task.WhenAll(tasks);
+                var tasks = requests.Select(r => r.ExecuteAsync(token)).ToList();
+                var allExited = await WaitForAllOrTimeout(tasks, TimeSpan.FromSeconds(Program.TimeoutSeconds));
+                if (allExited)
+                {
+                    // check for exceptions
+                    await Task.WhenAll(tasks);
+                }
+                else
+                {
+                    // timeout
+                    Console.WriteLine("Timeout reached! Cancelling remaining tasks!");
+                    tokenSource.Cancel();
+                }
             }
-            else
+            finally
             {
-                // timeout
-                Console.WriteLine("Timeout reached! Cancelling remaining tasks!");
-                tokenSource.Cancel();
+                foreach (var r in requests)
+                {
+                    r.Dispose();
+                }
             }
         }
 

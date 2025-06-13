@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -14,9 +15,10 @@ namespace FakeHttpClient
         ///
         /// This has multiple modes of operation.
         /// 1. If given a url and --interactive=true (the default): request that url, output to the console (including timing information).
+        /// (RunOne)
         ///
         /// 2. If given a url --interactive=false, request the url and write the output to a file (using the name and/or url as the output file name).
-        ///
+        /// (RunOne File)
         /// 3. If given a test suite and --interactive, read the list of urls and request each one in a new Console Window.
         ///
         /// 4. If given a test suite and --interactive=false, read the list of urls, request each one and write the output to a file (using the name/url) - each test
@@ -44,17 +46,21 @@ namespace FakeHttpClient
             string testName = "",
             string testFileOverride = "")
         {
-            var args = new RunConfig (testSuite, proxyPort, proxyIp, interactive, url, testName, testFileOverride);
+            var args = new RunConfig(testSuite, proxyPort, proxyIp, interactive, url, testName, testFileOverride);
             args.Validate();
-
-
+            // allow more than 2 connections to the same host
+            ServicePointManager.DefaultConnectionLimit = 20;
 
             Console.WriteLine($"Begin - {DateTime.Now}");
             var sw = Stopwatch.StartNew();
             var cts = new CancellationTokenSource(TimeSpan.FromSeconds(TimeoutSeconds));
             if (args.ExecuteOne)
             {
-                await ProxyRequest.ExecuteOne(url, testName, interactive, proxyPort, proxyIp, cts.Token);
+                using (var request = new ProxyRequest(interactive, url, testName, proxyPort, proxyIp))
+                {
+                    Console.WriteLine($"Execute One {url}");
+                    await request.ExecuteAsync(cts.Token);
+                }
             }
             else
             {
