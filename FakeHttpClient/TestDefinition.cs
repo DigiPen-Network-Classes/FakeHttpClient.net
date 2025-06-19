@@ -50,7 +50,7 @@ namespace FakeHttpClient
 
         private static async Task<List<TestDefinition>> ReadStream(Stream stream)
         {
-            return await JsonSerializer.DeserializeAsync<List<TestDefinition>>(stream);
+            return await JsonSerializer.DeserializeAsync<List<TestDefinition>>(stream) ?? new List<TestDefinition>();
         }
     }
 }

@@ -9,7 +9,7 @@ namespace FakeHttpClient
 {
     public class HttpProxyRequest : ProxyRequest
     {
-        private HttpWebRequest _request;
+        private HttpWebRequest? _request;
 
         public HttpProxyRequest(bool interactive, string url, string name, int proxyPort, string proxyIp)
         : base(interactive,
@@ -38,6 +38,11 @@ namespace FakeHttpClient
 
         protected override async Task ExecuteTest(CancellationToken token)
         {
+            if (_request == null)
+            {
+                throw new InvalidOperationException("Request not initialized. Call PrepareTest first.");
+            }
+
             using (var response = (HttpWebResponse)await _request.GetResponseAsync())
             using (var stream = response.GetResponseStream() ?? Stream.Null)
             using (var reader = new StreamReader(stream, Encoding.ASCII))

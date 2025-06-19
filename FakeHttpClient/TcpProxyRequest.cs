@@ -9,8 +9,8 @@ namespace FakeHttpClient
 {
     public class TcpProxyRequest : ProxyRequest
     {
-        private TcpClient _client;
-        private Uri _targetUri;
+        private TcpClient? _client;
+        private Uri? _targetUri;
 
         public TcpProxyRequest(bool interactive, string url, string name, int proxyPort, string proxyIp)
             : base(interactive, url, name, proxyPort, proxyIp)
@@ -26,6 +26,11 @@ namespace FakeHttpClient
 
         protected override async Task ExecuteTest(CancellationToken token)
         {
+            if (_client == null || _targetUri == null)
+            {
+                throw new InvalidOperationException("Client or target URI not initialized.");
+            }
+
             using (var stream = _client.GetStream())
             using (var writer = new StreamWriter(stream, Encoding.ASCII))
             using (var reader = new StreamReader(stream, Encoding.ASCII))
