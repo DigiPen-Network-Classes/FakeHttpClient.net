@@ -1,9 +1,5 @@
-using System;
 using System.Diagnostics;
-using System.IO;
 using System.Net;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace FakeHttpClient
 {
@@ -16,6 +12,11 @@ namespace FakeHttpClient
                 return new TcpProxyRequest(interactive, url, name, proxyPort, proxyIp);
             }
             return new HttpProxyRequest(interactive, url, name, proxyPort, proxyIp);
+        }
+
+        public static IProxyRequest CreateNullProxyRequest(bool interactive, string url, string testName, int proxyPort, string proxyIp)
+        {
+            return new NullProxyRequest(interactive, url, testName, proxyPort, proxyIp);
         }
     }
     public interface IProxyRequest : IDisposable

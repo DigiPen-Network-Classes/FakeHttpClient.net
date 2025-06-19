@@ -1,15 +1,12 @@
-using System;
-using System.IO;
 using System.Net;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace FakeHttpClient
 {
     public class HttpProxyRequest : ProxyRequest
     {
-        private HttpWebRequest? _request;
+        private HttpClientHandler? _handler;
+        private HttpRequestMessage? _request;
 
         public HttpProxyRequest(bool interactive, string url, string name, int proxyPort, string proxyIp)
         : base(interactive,
@@ -23,30 +20,42 @@ namespace FakeHttpClient
 
         protected override Task PrepareTest(CancellationToken token)
         {
-            _request = (HttpWebRequest)WebRequest.Create(Url);
-            _request.Host = new Uri(Url).Host;
-            _request.ProtocolVersion = HttpVersion.Version11;
-            _request.Proxy = new WebProxy($"http://{ProxyIp}:{ProxyPort}");
-            _request.UserAgent = "Curl/8.9.1"; // lie about who we are
-            _request.Method = "GET";
-            _request.Accept = "*/*";
-            _request.AllowReadStreamBuffering = false; // disables buffering so we can see the delay in the response
-            _request.KeepAlive = false; // do NOT keep alive
+            _handler = new HttpClientHandler
+            {
+                Proxy = new WebProxy($"http://{ProxyIp}:{ProxyPort}"),
+                UseProxy = true,
+                AllowAutoRedirect = false, // do NOT follow redirects
+                UseCookies = false, // do NOT use cookies
+            };
+            _request = new HttpRequestMessage(HttpMethod.Get, Url)
+            {
+                Version = HttpVersion.Version11,
+                VersionPolicy = HttpVersionPolicy.RequestVersionExact
+            };
+
+            // Set headers
+            _request.Headers.Host = new Uri(Url).Host;
+            _request.Headers.UserAgent.ParseAdd("Curl/8.9.1");
+            _request.Headers.Accept.ParseAdd("*/*");
+            _request.Headers.ConnectionClose = true; // Equivalent to KeepAlive = false
 
             return Task.CompletedTask;
         }
 
         protected override async Task ExecuteTest(CancellationToken token)
         {
-            if (_request == null)
+            if (_request == null || _handler == null)
             {
                 throw new InvalidOperationException("Request not initialized. Call PrepareTest first.");
             }
 
-            using (var response = (HttpWebResponse)await _request.GetResponseAsync())
-            using (var stream = response.GetResponseStream() ?? Stream.Null)
-            using (var reader = new StreamReader(stream, Encoding.ASCII))
+            using var client = new HttpClient(_handler, disposeHandler: true);
+
+            try
             {
+                using var response = await client.SendAsync(_request, HttpCompletionOption.ResponseHeadersRead, token);
+                await using var stream = await response.Content.ReadAsStreamAsync(token);
+                using var reader = new StreamReader(stream, Encoding.ASCII);
                 var buf = new char[64];
                 int bytesRead;
                 while ((bytesRead = await reader.ReadAsync(buf, 0, buf.Length)) > 0)
@@ -54,6 +63,10 @@ namespace FakeHttpClient
                     token.ThrowIfCancellationRequested();
                     await Writer.WriteAsync(new string(buf, 0, bytesRead));
                 }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
             }
         }
     }
