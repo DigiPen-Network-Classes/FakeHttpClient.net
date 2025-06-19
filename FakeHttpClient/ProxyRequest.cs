@@ -30,7 +30,7 @@ namespace FakeHttpClient
         {
             var request = (HttpWebRequest)WebRequest.Create(_url);
             request.Host = new Uri(_url).Host;
-            request.ProtocolVersion = HttpVersion.Version10;
+            request.ProtocolVersion = HttpVersion.Version11;
             request.Proxy = new WebProxy($"http://{_proxyIp}:{_proxyPort}");;
             request.UserAgent = "Curl/8.9.1"; // lie about who we are
             request.Method = "GET";
