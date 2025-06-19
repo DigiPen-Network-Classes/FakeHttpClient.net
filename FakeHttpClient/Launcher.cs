@@ -12,6 +12,7 @@ namespace FakeHttpClient
         private readonly bool _interactive;
         private readonly int _proxyPort;
         private readonly string _proxyIp;
+        private readonly bool _tcpProxy;
 
         /// <summary>
         /// Launch many tests in parallel.
@@ -21,19 +22,23 @@ namespace FakeHttpClient
         /// <param name="interactive"></param>
         /// <param name="proxyPort"></param>
         /// <param name="proxyIp"></param>
-        public Launcher(List<TestDefinition> tests, bool interactive, int proxyPort, string proxyIp)
+        /// <param name="tcpProxy"></param>
+        public Launcher(List<TestDefinition> tests, bool interactive, int proxyPort, string proxyIp, bool tcpProxy = false)
         {
             _tests = tests;
             _interactive = interactive;
             _proxyPort = proxyPort;
             _proxyIp = proxyIp;
+            _tcpProxy = tcpProxy;
         }
 
         public async Task ExecuteAsync(CancellationTokenSource tokenSource)
         {
             var token = tokenSource.Token;
             // ignore interactive
-            var requests = _tests.Select(test => new ProxyRequest(false, test.Url, test.Name, _proxyPort, _proxyIp)).ToList();
+            var requests = _tests
+                .Select(test => ProxyRequestFactory.CreateProxyRequest(false, test.Url, test.Name, _proxyPort, _proxyIp, _tcpProxy))
+                .ToList();
             try
             {
                 var tasks = requests.Select(r => r.ExecuteAsync(token)).ToList();

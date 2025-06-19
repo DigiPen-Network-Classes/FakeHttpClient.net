@@ -38,13 +38,15 @@ namespace FakeHttpClient
         /// <param name="interactive">If true, output to console, otherwise write results to files</param>
         /// <param name="url">If given a url, request that url and output either to file or console depending on interactive flag</param>
         /// <param name="testName">If given, used to name the output file when interactive is false</param>
+        /// <param name="raw">If true, use raw TCP Proxy instead of HTTP Proxy (HTTP Proxy just returns the body, not the raw stream)</param>
         public static async Task Main(string testSuite = "",
             int proxyPort = 8888,
             string proxyIp = "127.0.0.1",
             bool interactive = true,
             string url = "",
             string testName = "",
-            string testFileOverride = "")
+            string testFileOverride = "",
+            bool raw = true)
         {
             var args = new RunConfig(testSuite, proxyPort, proxyIp, interactive, url, testName, testFileOverride);
             args.Validate();
@@ -56,7 +58,7 @@ namespace FakeHttpClient
             var cts = new CancellationTokenSource(TimeSpan.FromSeconds(TimeoutSeconds));
             if (args.ExecuteOne)
             {
-                using (var request = new ProxyRequest(interactive, url, testName, proxyPort, proxyIp))
+                using (var request = ProxyRequestFactory.CreateProxyRequest(interactive, url, testName, proxyPort, proxyIp, raw))
                 {
                     Console.WriteLine($"Execute One {url}");
                     await request.ExecuteAsync(cts.Token);
@@ -65,7 +67,7 @@ namespace FakeHttpClient
             else
             {
                 var tests = await args.ReadTests();
-                var actor = new Launcher(tests, interactive, proxyPort, proxyIp);
+                var actor = new Launcher(tests, interactive, proxyPort, proxyIp, raw);
                 await actor.ExecuteAsync(cts);
             }
             sw.Stop();
