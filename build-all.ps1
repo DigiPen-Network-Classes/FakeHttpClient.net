@@ -13,7 +13,6 @@ $platforms = @(
 Remove-Item $outDir -Recurse -Force -ErrorAction SilentlyContinue
 foreach ($platform in $platforms) {
     $rid = $platform.Name
-    $outDir = "$outDir/$rid"
     Write-Host "Building package for $rid..."
-    dotnet publish -c Release -r $rid --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -o $outDir\$rid
+    dotnet publish FakeHttpClient -c Release -r $rid --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -o $outDir/$rid
 }
