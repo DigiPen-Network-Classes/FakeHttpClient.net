@@ -14,6 +14,7 @@ $platforms = @(
 Remove-Item $outDir -Recurse -Force -ErrorAction SilentlyContinue
 foreach ($platform in $platforms) {
     $rid = $platform.Name
+    $platformDir = "$outDir/$rid"
     Write-Host "Building package for $rid..."
     dotnet publish FakeHttpClient -c Release `
             -r $rid `
@@ -21,7 +22,9 @@ foreach ($platform in $platforms) {
             -p:PublishSingleFile=true `
             -p:IncludeNativeLibrariesForSelfExtract=true `
             -p:PublishTrimmed=false `
-            -o $outDir/$rid
+            -o $platformDir
+
+    Copy-Item -Path "./README.md" -Destination $platformDir -Force
 
     $zipPath = "$outDir/FakeHttpClient.Net-$version-$rid.zip"
     Write-Host "Creating zip package at $zipPath..."
