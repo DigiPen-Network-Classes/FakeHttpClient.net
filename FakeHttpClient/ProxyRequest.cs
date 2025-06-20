@@ -5,6 +5,16 @@ namespace FakeHttpClient
 {
     public class ProxyRequestFactory
     {
+        /// <summary>
+        /// Create the ProxyRequest to run this test based on parameters.
+        /// </summary>
+        /// <param name="interactive"></param>
+        /// <param name="url"></param>
+        /// <param name="name"></param>
+        /// <param name="proxyPort"></param>
+        /// <param name="proxyIp"></param>
+        /// <param name="rawRequest"></param>
+        /// <returns></returns>
         public static IProxyRequest CreateProxyRequest(bool interactive, string url, string name, int proxyPort, string proxyIp, bool rawRequest = false)
         {
             if (rawRequest)
@@ -14,6 +24,15 @@ namespace FakeHttpClient
             return new HttpProxyRequest(interactive, url, name, proxyPort, proxyIp);
         }
 
+        /// <summary>
+        /// Creates a ProxyRequest that does nothing.
+        /// </summary>
+        /// <param name="interactive"></param>
+        /// <param name="url"></param>
+        /// <param name="testName"></param>
+        /// <param name="proxyPort"></param>
+        /// <param name="proxyIp"></param>
+        /// <returns></returns>
         public static IProxyRequest CreateNullProxyRequest(bool interactive, string url, string testName, int proxyPort, string proxyIp)
         {
             return new NullProxyRequest(interactive, url, testName, proxyPort, proxyIp);
@@ -50,13 +69,14 @@ namespace FakeHttpClient
             Writer = writer;
         }
 
-        public virtual async Task ExecuteAsync(CancellationToken token)
+        public async Task ExecuteAsync(CancellationToken token)
         {
             await PrepareTest(token);
             try
             {
                 await Writer.WriteLineAsync($"Begin Test {Name}: {Url} {DateTime.Now}");
                 var sw = Stopwatch.StartNew();
+
                 await ExecuteTest(token);
                 sw.Stop();
                 var result = sw.ElapsedMilliseconds < ThresholdMilliseconds ? "pass!" : "FAIL (Took too long!)";
@@ -87,7 +107,7 @@ namespace FakeHttpClient
         public virtual void Dispose()
         {
             GC.SuppressFinalize(this);
-            Writer?.Dispose();
+            Writer.Dispose();
         }
     }
 }

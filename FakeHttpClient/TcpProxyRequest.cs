@@ -3,15 +3,11 @@ using System.Text;
 
 namespace FakeHttpClient;
 
-public class TcpProxyRequest : ProxyRequest
+public class TcpProxyRequest(bool interactive, string url, string name, int proxyPort, string proxyIp)
+    : ProxyRequest(interactive, url, name, proxyPort, proxyIp)
 {
     private TcpClient? _client;
     private Uri? _targetUri;
-
-    public TcpProxyRequest(bool interactive, string url, string name, int proxyPort, string proxyIp)
-        : base(interactive, url, name, proxyPort, proxyIp)
-    {
-    }
 
     protected override Task PrepareTest(CancellationToken token)
     {
@@ -26,10 +22,10 @@ public class TcpProxyRequest : ProxyRequest
         {
             throw new InvalidOperationException("Client or target URI not initialized.");
         }
+        var stream = _client.GetStream();
+        var writer = new StreamWriter(stream, Encoding.ASCII);
+        var reader = new StreamReader(stream, Encoding.ASCII);
 
-        await using var stream = _client.GetStream();
-        await using var writer = new StreamWriter(stream, Encoding.ASCII);
-        using var reader = new StreamReader(stream, Encoding.ASCII);
         await writer.WriteAsync($"GET {_targetUri.PathAndQuery} HTTP/1.1\r\n" +
                                 $"Host: {_targetUri.Host}\r\n" +
                                 "Connection: close\r\n" +
@@ -38,26 +34,26 @@ public class TcpProxyRequest : ProxyRequest
                                 "\r\n");
         await writer.FlushAsync(token);
         // Read raw response byte-by-byte
-        var buffer = new byte[128];
+        var buffer = new char[128];
         while (!token.IsCancellationRequested)
         {
             try
             {
-                Console.WriteLine("calling read async");
-                var bytesRead = await stream.ReadAsync(buffer, token);
-                Console.WriteLine($"read {bytesRead} bytes");
-
+                var bytesRead = await reader.ReadAsync(buffer, 0, 128);
                 if (bytesRead > 0)
                 {
-                    await Writer.WriteAsync(Encoding.ASCII.GetString(buffer, 0, bytesRead));
+                    var s = new string(buffer, 0, bytesRead);
+                    await Writer.WriteAsync(s);
                 }
-                await Task.Delay(50, token);
-                Console.WriteLine("loop");
+                else
+                {
+                    break;
+                }
             }
             catch (OperationCanceledException)
             {
-                // Handle cancellation gracefully
-                Console.WriteLine("Operation cancelled.");
+                // Handle gracefully
+                Console.WriteLine("Operation canceled.");
                 break;
             }
             catch (Exception ex)

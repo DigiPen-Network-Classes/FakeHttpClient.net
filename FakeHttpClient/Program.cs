@@ -6,6 +6,7 @@ namespace FakeHttpClient;
 internal class Program
 {
     public const int TimeoutSeconds = 20;
+    private static bool Success { get; set; }
 
     /// <summary>
     /// FakeHttpClient for testing Assignments in CS 260 Computer Networks I
@@ -36,7 +37,7 @@ internal class Program
     /// <param name="url">If given a url, request that url and output either to file or console depending on interactive flag</param>
     /// <param name="testName">If given, used to name the output file when interactive is false</param>
     /// <param name="raw">If true, use raw TCP Proxy instead of HTTP Proxy (HTTP Proxy just returns the body, not the raw stream)</param>
-    public static async Task Main(string testSuite = "",
+    public static Task Main(string testSuite = "",
         int proxyPort = 8888,
         string proxyIp = "127.0.0.1",
         bool interactive = true,
@@ -45,35 +46,53 @@ internal class Program
         string testFileOverride = "",
         bool raw = true)
     {
-        var args = new RunConfig(testSuite, proxyPort, proxyIp, interactive, url, testName, testFileOverride);
+        var args = new RunConfig(testSuite, proxyPort, proxyIp, interactive, url, testName, testFileOverride, raw);
         args.Validate();
         // allow more than 2 connections to the same host
         ServicePointManager.DefaultConnectionLimit = 20;
 
+        try
+        {
+            // NOTE: There is a bug in System.Commandline.2.0.0 and dragonfruit
+            // this doesn't 'await' correctly. Fix when 2.0.0.0 is released...
+            // and anyway, DragonFruit is deprecated and "going away" at 2.0.0.
+            // see https://github.com/dotnet/command-line-api/issues/2152
+            var cts = new CancellationTokenSource(TimeSpan.FromSeconds(TimeoutSeconds));
+            RunTests(args, cts).Wait(cts.Token);
+        }
+        catch (OperationCanceledException e)
+        {
+            if (!Success)
+            {
+                Console.WriteLine($"Cancellation requested or timeout reached: { e.Message}");
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"Exception Running Tests: {e}");
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private static async Task RunTests(RunConfig args, CancellationTokenSource cts)
+    {
         Console.WriteLine($"Begin - {DateTime.Now}");
         var sw = Stopwatch.StartNew();
-        var cts = new CancellationTokenSource(TimeSpan.FromSeconds(TimeoutSeconds));
         if (args.ExecuteOne)
         {
-            using var request = ProxyRequestFactory.CreateProxyRequest(interactive, url, testName, proxyPort, proxyIp, raw);
-            //using var request = ProxyRequestFactory.CreateNullProxyRequest(interactive, url, testName, proxyPort, proxyIp);
-            Console.WriteLine($"Execute One {url}");
-            try
-            {
-                await request.ExecuteAsync(cts.Token);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.ToString());
-            }
-
-            Console.WriteLine("done with single");
+            using var request = ProxyRequestFactory.CreateProxyRequest(args.Interactive, args.Url, args.TestName, args.ProxyPort, args.ProxyIp, args.RawTcp);
+            await request.ExecuteAsync(cts.Token);
+            Success = true; // so we don't interpret the cancellation as a failure
+            await cts.CancelAsync();
         }
         else
         {
             var tests = await args.ReadTests();
-            var actor = new Launcher(tests, interactive, proxyPort, proxyIp, raw);
+            var actor = new Launcher(tests, args.Interactive, args.ProxyPort, args.ProxyIp, args.RawTcp);
             await actor.ExecuteAsync(cts);
+            Success = true; // so we don't interpret the cancellation as a failure
+            await cts.CancelAsync();
         }
         sw.Stop();
         Console.WriteLine($"End - {DateTime.Now} (elapsed: {sw.ElapsedMilliseconds} ms)");

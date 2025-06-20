@@ -1,38 +1,37 @@
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+namespace FakeHttpClient;
 
-namespace FakeHttpClient
-{
     public class RunConfig
     {
-        private readonly string _testSuite;
-        private readonly int _proxyPort;
-        private readonly string _proxyIp;
-        private readonly bool _interactive;
-        private readonly string _url;
-        private readonly string _testName;
-        private readonly string _testFileOverride;
+        public string TestSuite { get; }
+        public int ProxyPort { get; }
+        public string ProxyIp { get; }
+        public bool Interactive { get; private set; }
+        public string Url { get; }
+        public string TestName { get; private set; }
+        public string TestFileOverride { get; }
+        public bool RawTcp { get; }
 
         public RunConfig(string testSuite,
             int proxyPort,
             string proxyIp,
-            bool interactive ,
+            bool interactive,
             string url,
             string testName,
-            string testFileOverride)
+            string testFileOverride,
+            bool rawTcp)
         {
 
-            _testSuite = testSuite;
-            _proxyPort = proxyPort;
-            _proxyIp = proxyIp;
-            _interactive = interactive;
-            _url = url;
-            _testName = testName;
-            _testFileOverride = testFileOverride;
+            TestSuite = testSuite;
+            ProxyPort = proxyPort;
+            ProxyIp = proxyIp;
+            Interactive = interactive;
+            Url = url;
+            TestName = testName;
+            TestFileOverride = testFileOverride;
+            RawTcp = rawTcp;
         }
 
-        private bool HasNoInput => string.IsNullOrEmpty(_url) && string.IsNullOrEmpty(_testSuite) && string.IsNullOrEmpty(_testFileOverride);
+        private bool HasNoInput => string.IsNullOrEmpty(Url) && string.IsNullOrEmpty(TestSuite) && string.IsNullOrEmpty(TestFileOverride);
 
         public void Validate()
         {
@@ -40,22 +39,22 @@ namespace FakeHttpClient
             {
                 throw new Exception("No input (file, resource, or url) given");
             }
-            if (_proxyPort < 1 || _proxyPort > 65535)
+            if (ProxyPort < 1 || ProxyPort > 65535)
             {
-                throw new ArgumentOutOfRangeException(nameof(_proxyPort), "Proxy port must be between 1 and 65535.");
+                throw new ArgumentOutOfRangeException(nameof(ProxyPort), "Proxy port must be between 1 and 65535.");
             }
 
-            if (string.IsNullOrEmpty(_proxyIp))
+            if (string.IsNullOrEmpty(ProxyIp))
             {
-                throw new ArgumentNullException(nameof(_proxyIp), "Proxy IP cannot be null or empty.");
+                throw new ArgumentNullException(nameof(ProxyIp), "Proxy IP cannot be null or empty.");
             }
         }
 
-        public bool ExecuteOne => !string.IsNullOrEmpty(_url);
+        public bool ExecuteOne => !string.IsNullOrEmpty(Url);
 
         public async Task<List<TestDefinition>> ReadTests()
         {
-            if (string.IsNullOrEmpty(_testFileOverride))
+            if (string.IsNullOrEmpty(TestFileOverride))
             {
                 return await ReadResource();
             }
@@ -65,14 +64,13 @@ namespace FakeHttpClient
 
         private async Task<List<TestDefinition>> ReadFile()
         {
-            Console.WriteLine($"Reading local file: {_testFileOverride}");
-            return await TestDefinition.ReadFileAsync(_testFileOverride);
+            Console.WriteLine($"Reading local file: {TestFileOverride}");
+            return await TestDefinition.ReadFileAsync(TestFileOverride);
         }
 
         private async Task<List<TestDefinition>> ReadResource()
         {
-            Console.WriteLine($"Reading resource: {_testSuite}");
-            return await TestDefinition.ReadResourceAsync(_testSuite);
+            Console.WriteLine($"Reading resource: {TestSuite}");
+            return await TestDefinition.ReadResourceAsync(TestSuite);
         }
     }
-}
