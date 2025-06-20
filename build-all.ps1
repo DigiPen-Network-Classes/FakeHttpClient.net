@@ -1,7 +1,5 @@
 $ErrorActionPreference = "Stop"
-
 $outDir = "dist"
-
 $platforms = @(
     @{ Name = "win-x64"   },
     @{ Name = "win-arm64" },
