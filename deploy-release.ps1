@@ -8,4 +8,4 @@ gh release create $tag `
     --title "Release $tag" `
     --notes "Cross-platform build of FakeHttpClient" `
     --target main `
-    $(Get-ChildItem "$outDir\*.zip" | ForEach-Object { "--assets" , $_.FullName })
+    $(Get-ChildItem "$outDir\*.zip" | ForEach-Object { $_.FullName })
