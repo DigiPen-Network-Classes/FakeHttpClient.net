@@ -33,6 +33,8 @@ public class TcpProxyRequest(bool interactive, string url, string name, int prox
                                 "Accept: */*\r\n" +
                                 "\r\n");
         await writer.FlushAsync(token);
+        _client.Client.Shutdown(SocketShutdown.Send);
+
         // Read raw response byte-by-byte
         var buffer = new char[128];
         while (!token.IsCancellationRequested)
