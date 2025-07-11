@@ -95,6 +95,7 @@ internal class Program
             await cts.CancelAsync();
         }
         sw.Stop();
-        Console.WriteLine($"End - {DateTime.Now} (elapsed: {sw.ElapsedMilliseconds} ms)");
+        await Console.Out.WriteLineAsync($"End - {DateTime.Now} (elapsed: {sw.ElapsedMilliseconds} ms)");
+        await Console.Out.FlushAsync();
     }
 }
