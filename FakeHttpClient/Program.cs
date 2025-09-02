@@ -97,5 +97,6 @@ internal class Program
         sw.Stop();
         await Console.Out.WriteLineAsync($"End - {DateTime.Now} (elapsed: {sw.ElapsedMilliseconds} ms)");
         await Console.Out.FlushAsync();
+        await Task.Delay(100);
     }
 }
