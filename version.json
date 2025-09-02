@@ -6,9 +6,13 @@
     "semVer": 2.0
   },
   "publicReleaseRefSpec": [
-    "^refs/heads/tags/v\\d+(?:\\.\\d+)?$",
-    "^refs/heads/release/v\\d+(?:\\.\\d+)?$"
+    "^refs/heads/release/v\\d+\\.\\d+\\.\\d+$",
+    "^refs/tags/v\\d+\\.\\d+\\.\\d+$",
+    "^refs/heads/hotfix/v\\d+\\.\\d+\\.\\d+$"
   ],
+  "release": {
+    "branchName": "release/v{version}"
+  },
   "cloudBuild": {
     "buildNumber": {
       "enabled": true
