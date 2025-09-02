@@ -19,6 +19,10 @@
     <PropertyGroup>
         <NoWarn>1570,1584,1658,1591,1711,1712,1574,0419,1572,1573</NoWarn>
     </PropertyGroup>
+    <!-- ignore nuget-prerelease (dragonfruit is always going to be prerelease but is going away) -->
+    <PropertyGroup>
+        <NoWarn>NU5104</NoWarn>
+    </PropertyGroup>
     
     <ItemGroup>
         <PackageReference Include="System.CommandLine.DragonFruit" Version="0.4.0-alpha.25306.1" />
