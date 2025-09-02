@@ -60,6 +60,7 @@ namespace FakeHttpClient
                 int bytesRead;
                 while ((bytesRead = await reader.ReadAsync(buf, 0, buf.Length)) > 0)
                 {
+                    BytesReceived += bytesRead;
                     token.ThrowIfCancellationRequested();
                     await Writer.WriteAsync(new string(buf, 0, bytesRead));
                 }

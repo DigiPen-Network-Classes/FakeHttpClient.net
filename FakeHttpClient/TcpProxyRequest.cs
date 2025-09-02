@@ -44,6 +44,7 @@ public class TcpProxyRequest(bool interactive, string url, string name, int prox
                 var bytesRead = await reader.ReadAsync(buffer, 0, 128);
                 if (bytesRead > 0)
                 {
+                    BytesReceived += bytesRead;
                     var s = new string(buffer, 0, bytesRead);
                     await Writer.WriteAsync(s);
                 }

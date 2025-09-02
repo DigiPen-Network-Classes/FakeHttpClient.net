@@ -3,6 +3,19 @@ using System.Net;
 
 namespace FakeHttpClient
 {
+    public enum TestResult
+    {
+        Success,
+        /// <summary>
+        /// the test(s) took too long
+        /// </summary>
+        TooSlow,
+        /// <summary>
+        /// the tests did not receive the expected response
+        /// </summary>
+        NotEnoughData
+    }
+
     public class ProxyRequestFactory
     {
         /// <summary>
@@ -45,15 +58,19 @@ namespace FakeHttpClient
 
     public abstract class ProxyRequest : IProxyRequest
     {
-        protected const long ThresholdMilliseconds = 7 * 1000; // seconds, longer than that indicates a problem
-        protected bool Interactive { get; set; }
-        protected string Url { get; set; }
-        protected string Name { get; set; }
-        protected TextWriter Writer { get; set; }
-        protected int ProxyPort { get; set; }
-        protected string ProxyIp { get; set; }
+        private const long ThresholdMilliseconds = 7 * 1000; // seconds, longer than that indicates a problem
+        private const int MinimumBytesReceived = 100; // less than that indicates a problem
 
-        protected ProxyRequest(bool interactive, string url, string name, int proxyPort, string proxyIp): this(interactive,
+        protected bool Interactive { get; set; }
+        protected string Url { get; }
+        private string Name { get; }
+        protected TextWriter Writer { get; }
+        protected int ProxyPort { get; }
+        protected string ProxyIp { get; }
+
+        protected int BytesReceived { get; set; }
+
+        protected ProxyRequest(bool interactive, string url, string name, int proxyPort, string proxyIp) : this(interactive,
             interactive ? WriterFactory.BuildConsoleWriter() : WriterFactory.BuildFileWriter(url, name),
             url, name, proxyPort, proxyIp)
         {
@@ -79,8 +96,9 @@ namespace FakeHttpClient
 
                 await ExecuteTest(token);
                 sw.Stop();
-                var result = sw.ElapsedMilliseconds < ThresholdMilliseconds ? "pass!" : "FAIL (Took too long!)";
-                await Writer.WriteLineAsync($"\nEnd Test: Total time for {Name} ({Url}): {sw.ElapsedMilliseconds}ms. Result: {result}");
+                var result = EvaluateResult(sw.ElapsedMilliseconds);
+                var pass = result == TestResult.Success ? "pass!" : $"FAIL! ({result})";
+                await Writer.WriteLineAsync($"\nEnd Test: Total time for {Name} ({Url}): {sw.ElapsedMilliseconds}ms. Result: {pass}");
             }
             catch (Exception e)
             {
@@ -92,15 +110,22 @@ namespace FakeHttpClient
         protected abstract Task PrepareTest(CancellationToken token);
         protected abstract Task ExecuteTest(CancellationToken token);
 
-        protected virtual async Task HandleException(Exception e)
+        private TestResult EvaluateResult(long elapsedMilliseconds)
+        {
+            if (elapsedMilliseconds >= ThresholdMilliseconds)
+            {
+                return TestResult.TooSlow;
+            }
+            return BytesReceived < MinimumBytesReceived ? TestResult.NotEnoughData : TestResult.Success;
+        }
+
+        private async Task HandleException(Exception e)
         {
             await Writer.WriteLineAsync($"Error: {e.Message}");
             if (e is WebException webEx && webEx.Response != null)
             {
-                using (var reader = new StreamReader(webEx.Response.GetResponseStream() ?? Stream.Null))
-                {
-                    await Writer.WriteLineAsync(await reader.ReadToEndAsync());
-                }
+                using var reader = new StreamReader(webEx.Response.GetResponseStream());
+                await Writer.WriteLineAsync(await reader.ReadToEndAsync());
             }
         }
 
