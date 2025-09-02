@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 $outDir = "dist"
-$version = nbgv get-version -f json  | jq -r .NuGetPackageVersion
+$version = nbgv get-version -v NuGetPackageVersion
 Write-Output $version
 
 $platforms = @(
