@@ -98,7 +98,7 @@ namespace FakeHttpClient
                 sw.Stop();
                 var result = EvaluateResult(sw.ElapsedMilliseconds);
                 var pass = result == TestResult.Success ? "pass!" : $"FAIL! ({result})";
-                await Writer.WriteLineAsync($"\nEnd Test: Total time for {Name} ({Url}): {sw.ElapsedMilliseconds}ms. Result: {pass}");
+                await Writer.WriteLineAsync($"\nEnd Test: Total time for {Name} ({Url}): {sw.ElapsedMilliseconds}ms. \nBytes Received: {BytesReceived}\n Result: {pass}");
             }
             catch (Exception e)
             {
