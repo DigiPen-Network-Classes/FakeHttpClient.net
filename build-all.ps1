@@ -24,8 +24,6 @@ foreach ($platform in $platforms) {
             -p:PublishTrimmed=false `
             -o $platformDir
 
-    Copy-Item -Path "./README.md" -Destination $platformDir -Force
-
     $zipPath = "$outDir/FakeHttpClient.Net-$version-$rid.zip"
     Write-Host "Creating zip package at $zipPath..."
     Compress-Archive -Path "$outDir/$rid/*" -DestinationPath $zipPath -Force

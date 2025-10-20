@@ -34,6 +34,8 @@
       <EmbeddedResource Include="../LICENSE">
           <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </EmbeddedResource>
+        <EmbeddedResource Include="../README.md" CopyToOutputDirectory="Always" />
+        <EmbeddedResource Include="../PRIVACY.md" CopyToOutputDirectory="Always" />
     </ItemGroup>
 
     <ItemGroup>
