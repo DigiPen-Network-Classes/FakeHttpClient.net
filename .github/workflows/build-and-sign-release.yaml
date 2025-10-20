@@ -1,0 +1,129 @@
+name: Build and Sign Release
+
+on:
+  push:
+    tags:
+      - 'v*' # trigger on tags like v1.0.1
+  workflow_dispatch:
+
+jobs:
+  build-and-sign:
+    runs-on: windows-latest
+
+    strategy:
+      matrix:
+        include:
+          - rid: win-x64
+            platform: windows-x64
+          - rid: win-arm64
+            platform: windows-arm64
+          - rid: linux-x64
+            platform: linux-x64
+          - rid: osx-x64
+            platform: macos-x64
+          - rid: osx-arm64
+            platform: macos-arm64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for all branches and tags, required for versioning
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.x'
+
+      - name: Publish ${{ matrix.platform }}
+        run: |
+          $platformDir = "publish/${{ matrix.platform }}"
+          dotnet publish FakeHttpClient -c Release `
+            -r ${{ matrix.rid }} `
+            --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:PublishTrimmed=false `
+            -o $platformDir
+          shell: pwsh
+
+      - name: Sign Windows Executable
+        if: startsWith(matrix.rid, 'win-')
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: '${{ secrets.SIGNPATH_CI_USER_TOKEN }}'
+          organization-id: 'ORGIDGOESHERE' # TODO replace with org id
+          project-slug: 'DigiPen-CS260-FakeHttpClient.net' # TODO verify value
+          signing-policy-slug: 'release-signing' # TODO replace with policy slug
+          github-artifact-id: 'unsigned-${{ matrix.platform }}'
+          wait-for-completion: 'true'
+          output-artifact-directory: 'publish/${{ matrix.platform }}'
+          parameters: |
+            Version: ${{ github.ref_name }}
+
+      - name: Upload unsigned artifact (for signing)
+        if: startsWith(matrix.rid, 'win-')
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-${{ matrix.platform }}
+          path: publish/${{ matrix.platform }}/*.exe
+          retention-days: 1
+
+      - name: Create ZIP archive
+        run: |
+          $platformDir = "publish/${{ matrix.platform }}"
+          $zipName = "FakeHttpClient.Net-${{ matrix.platform }}-${{ github.ref_name }}.zip"
+          Compress-Archive -Path "$platformDir/*" -DestinationPath $zipName
+        shell: pwsh
+
+      - name: Generate SHA256 checksum
+        run: |
+          $zipName = "FakeHttpClient.Net-${{ matrix.platform }}-${{ github.ref_name }}.zip"
+          $hash = (Get-FileHash $zipName -Algorithm SHA256).Hash
+          "$hash $zipName" | Out-File -FilePath "$zipName.sha256" -Encoding ASCII
+        shell: pwsh
+
+      - name: Upload releease artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.platform }}
+          path: |
+            *.zip
+            *.sha256
+
+  create-release:
+    needs: build-and-sign
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          merge-multiple: 'true'
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            *.zip
+            *.sha256
+          body: |
+            ## Release ${{ github.ref_name }}
+            
+            ** Note for windows users:** This application generates HTTP requests and uses raw TCP sockets for testing purposes.
+            Windows Defender may flag it as hostile initially. The executables are signed with SignPath to verify authenticity.
+            
+            ### SHA256 Checksum
+            See `.sha256` files for verification.
+            
+            ### Installation
+            1. Download the appropriate ZIP for your platform.
+            2. Extract the archive.
+            3. On Windows, you may need to add an exclusion in Windows Defender.
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,86 @@
+name: Simplified Build Release
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - rid: win-x64
+            platform: windows-x64
+          - rid: win-arm64
+            platform: windows-arm64
+          - rid: linux-x64
+            platform: linux-x64
+          - rid: osx-x64
+            platform: macos-x64
+          - rid: osx-arm64
+            platform: macos-arm64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for all branches and tags, required for versioning
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.x'
+
+      - name: Publish ${{ matrix.platform }}
+        run: |
+          $platformDir = "publish/${{ matrix.platform }}"
+          dotnet publish FakeHttpClient -c Release `
+            -r ${{ matrix.rid }} `
+            --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:PublishTrimmed=false `
+            -o $platformDir
+        shell: pwsh
+
+      # For Windows builds, upload unsigned exe to SignPath manually
+      - name: Upload to SignPath (Windows only)
+        if: startsWith(matrix.rid, 'win-')
+        run: |
+          $exePath = "publish/${{ matrix.platform }}/FakeHttpClient.exe"
+          # Submit to SignPath via their web portal or CLI
+          Write-Host "Upload $exePath to SignPath portal for signing"
+          # After signing, download and replace the exe
+        shell: pwsh
+        continue-on-error: true
+
+      - name: Create ZIP archive
+        run: |
+          $platformDir = "publish/${{ matrix.platform }}"
+          $zipName = "FakeHttpClient-${{ matrix.platform }}-${{ github.ref_name }}.zip"
+          Compress-Archive -Path "$platformDir/*" -DestinationPath $zipName
+        shell: pwsh
+
+      - name: Generate SHA256 checksum
+        run: |
+          $zipName = "FakeHttpClient-${{ matrix.platform }}-${{ github.ref_name }}.zip"
+          $hash = (Get-FileHash $zipName -Algorithm SHA256).Hash
+          "$hash  $zipName" | Out-File -FilePath "$zipName.sha256" -Encoding ASCII
+        shell: pwsh
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.platform }}
+          path: |
+            *.zip
+            *.sha256
+
+      # Also upload unsigned Windows exe for manual signing
+      - name: Upload unsigned Windows exe
+        if: startsWith(matrix.rid, 'win-')
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-exe-${{ matrix.platform }}
+          path: publish/${{ matrix.platform }}/FakeHttpClient.exe
