@@ -45,7 +45,7 @@ that return larger amounts of data -- are you handling multiple chunks of data c
 
 ### RunOneFileOutput.bat
 
-This is the http://cs260.meacnat.com/delay URL, outputting the results to a file.
+This calls the http://cs260.meancat.com/delay URL, outputting the results to a file.
 
 
 ### RunManyFileOutput.bat
