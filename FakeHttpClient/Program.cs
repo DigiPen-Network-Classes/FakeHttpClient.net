@@ -22,15 +22,16 @@ internal class Program
     /// 4. If given a test suite and --interactive=false, read the list of urls, request each one and write the output to a file (using the name/url) - each test
     /// gets their own file.
     ///
-    /// If you specify a test-file-override (path to some json file) then read the urls from that file instead of a resource.
+    /// A test suite is a loose .json file shipped next to the executable (e.g. multi.json); --test-suite names it.
+    /// If you specify a test-file-override (path to some json file) then read the urls from that file instead.
     /// </summary>
     /// <remarks>
     /// Due to technical reasons and me not having enough time to fix it ...
     /// Modes 3 and 4 will always work NON-interactively on OSX and Linux. The --interactive flag is ignored.
     /// You can have one url be interactive, but multiples is running into problems with the Mono runtime and Terminal behavior.
     /// </remarks>
-    /// <param name="testSuite">name of the resource that describes the test(s) to be run</param>
-    /// <param name="testFileOverride">If given, read this file instead of a resource.</param>
+    /// <param name="testSuite">name of the test-suite json file (next to the exe) that describes the test(s) to be run</param>
+    /// <param name="testFileOverride">If given, read this json file path instead of a named test suite.</param>
     /// <param name="proxyPort">the port the proxy (assignment) is listening to</param>
     /// <param name="proxyIp">the IP address of the proxy (assignment) server</param>
     /// <param name="interactive">If true, output to console, otherwise write results to files</param>

@@ -56,7 +56,7 @@ namespace FakeHttpClient;
         {
             if (string.IsNullOrEmpty(TestFileOverride))
             {
-                return await ReadResource();
+                return await ReadSuite();
             }
 
             return await ReadFile();
@@ -68,9 +68,9 @@ namespace FakeHttpClient;
             return await TestDefinition.ReadFileAsync(TestFileOverride);
         }
 
-        private async Task<List<TestDefinition>> ReadResource()
+        private async Task<List<TestDefinition>> ReadSuite()
         {
-            Console.WriteLine($"Reading resource: {TestSuite}");
-            return await TestDefinition.ReadResourceAsync(TestSuite);
+            Console.WriteLine($"Reading test suite: {TestSuite}");
+            return await TestDefinition.ReadSuiteAsync(TestSuite);
         }
     }

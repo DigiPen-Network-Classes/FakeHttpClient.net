@@ -29,13 +29,22 @@
     </ItemGroup>
 
     <ItemGroup>
-      <EmbeddedResource Include="multi.json" />
-      <EmbeddedResource Include="single.json" />
       <EmbeddedResource Include="../LICENSE">
           <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </EmbeddedResource>
         <EmbeddedResource Include="../README.md" CopyToOutputDirectory="Always" />
         <EmbeddedResource Include="../PRIVACY.md" CopyToOutputDirectory="Always" />
+    </ItemGroup>
+
+    <!-- Test suites ship as loose files next to the exe (not embedded), so new
+         suites can be added by dropping in a .json without recompiling. -->
+    <ItemGroup>
+      <None Update="multi.json">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="single.json">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
     </ItemGroup>
 
     <ItemGroup>
