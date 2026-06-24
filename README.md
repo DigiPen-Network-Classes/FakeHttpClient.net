@@ -195,6 +195,6 @@ for version 1.2. The main branch should now be `1.3.0-alpha+gxxxxx`
 
 ```
 nbgv prepare-release
-git checkout v1.1.1
+git checkout release/v1.2.0
 nbgv get-version
 ```
