@@ -193,8 +193,12 @@ End - 6/19/2025 5:55:10 (elapsed: 5122 ms)
 Ex. current working version is `1.2.0-alpha+gxxxx` and we're ready to create a release branch
 for version 1.2. The main branch should now be `1.3.0-alpha+gxxxxx`
 
-```
+```bash
 nbgv prepare-release
 git checkout release/v1.2.0
 nbgv get-version
+
+pwsh ./build-all.ps1
+pwsh ./deploy-release.ps1
+git push --set-upstream origin release/v1.2.0
 ```
