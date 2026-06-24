@@ -188,4 +188,13 @@ End Test: Total time for  (http://cs260.meancat.com/delay): 5116ms. Result: pass
 End - 6/19/2025 5:55:10 (elapsed: 5122 ms)
 ```
 
-# Creating a new Release
+# Preparing a new Release
+
+Ex. current working version is `1.2.0-alpha+gxxxx` and we're ready to create a release branch
+for version 1.2. The main branch should now be `1.3.0-alpha+gxxxxx`
+
+```
+nbgv prepare-release
+git checkout v1.1.1
+nbgv get-version
+```
