@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/dotnet/Nerdbank.GitVersioning/main/src/NerdBank.GitVersioning/version.schema.json",
-  "version": "1.2.0-alpha",
+  "version": "1.3.0-alpha",
   "assemblyVersion": "1.0.0.0",
   "nuGetPackageVersion": {
     "semVer": 2.0
@@ -10,12 +10,12 @@
     "^refs/tags/v\\d+\\.\\d+\\.\\d+$",
     "^refs/heads/hotfix/v\\d+\\.\\d+\\.\\d+$"
   ],
-  "release": {
-    "branchName": "release/v{version}"
-  },
   "cloudBuild": {
     "buildNumber": {
       "enabled": true
     }
+  },
+  "release": {
+    "branchName": "release/v{version}"
   }
 }
