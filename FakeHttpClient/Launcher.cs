@@ -36,18 +36,12 @@ public class Launcher
             .ToList();
         try
         {
-            var tasks = requests.Select(r => r.ExecuteAsync(token)).ToList();
-            var allExited = await WaitForAllOrTimeout(tasks, TimeSpan.FromSeconds(Program.TimeoutSeconds));
-            if (allExited)
+            // Each request honors the token (which carries the overall timeout) and reports its own result,
+            // so waiting for all of them never hangs and every output file gets its End Test line.
+            await Task.WhenAll(requests.Select(r => r.ExecuteAsync(token)));
+            if (token.IsCancellationRequested)
             {
-                // check for exceptions
-                await Task.WhenAll(tasks);
-            }
-            else
-            {
-                // timeout
-                Console.WriteLine("Timeout reached! Cancelling remaining tasks!");
-                await tokenSource.CancelAsync();
+                Console.WriteLine("Timeout reached! Remaining requests were cancelled.");
             }
         }
         finally
@@ -57,13 +51,5 @@ public class Launcher
                 r.Dispose();
             }
         }
-    }
-
-    private static async Task<bool> WaitForAllOrTimeout(IEnumerable<Task> tasks, TimeSpan timeout)
-    {
-        var timeoutTask = Task.Delay(timeout);
-        var allTasks = Task.WhenAll(tasks);
-        var completed = await Task.WhenAny(allTasks, timeoutTask);
-        return completed == allTasks;
     }
 }

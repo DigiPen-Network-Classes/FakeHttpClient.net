@@ -9,11 +9,11 @@ public class TcpProxyRequest(bool interactive, string url, string name, int prox
     private TcpClient? _client;
     private Uri? _targetUri;
 
-    protected override Task PrepareTest(CancellationToken token)
+    protected override async Task PrepareTest(CancellationToken token)
     {
-        _client = new TcpClient(ProxyIp, ProxyPort);
         _targetUri = new Uri(Url);
-        return Task.CompletedTask;
+        _client = new TcpClient();
+        await _client.ConnectAsync(ProxyIp, ProxyPort, token);
     }
 
     protected override async Task ExecuteTest(CancellationToken token)
@@ -35,35 +35,20 @@ public class TcpProxyRequest(bool interactive, string url, string name, int prox
         await writer.FlushAsync(token);
         _client.Client.Shutdown(SocketShutdown.Send);
 
-        // Read raw response byte-by-byte
+        // Read the raw response until the proxy closes the connection.
+        // Errors (e.g. a reset instead of a graceful close) propagate to ProxyRequest, which reports them as a failure.
         var buffer = new char[128];
-        while (!token.IsCancellationRequested)
+        int bytesRead;
+        while ((bytesRead = await reader.ReadAsync(buffer.AsMemory(), token)) > 0)
         {
-            try
-            {
-                var bytesRead = await reader.ReadAsync(buffer, 0, 128);
-                if (bytesRead > 0)
-                {
-                    BytesReceived += bytesRead;
-                    var s = new string(buffer, 0, bytesRead);
-                    await Writer.WriteAsync(s);
-                }
-                else
-                {
-                    break;
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                // Handle gracefully
-                Console.WriteLine("Operation canceled.");
-                break;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error reading from stream: {ex.Message}");
-                break;
-            }
+            BytesReceived += bytesRead;
+            await Writer.WriteAsync(new string(buffer, 0, bytesRead));
         }
+    }
+
+    public override void Dispose()
+    {
+        _client?.Dispose();
+        base.Dispose();
     }
 }

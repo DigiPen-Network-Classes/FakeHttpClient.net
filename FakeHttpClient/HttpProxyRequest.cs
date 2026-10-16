@@ -51,23 +51,15 @@ namespace FakeHttpClient
 
             using var client = new HttpClient(_handler, disposeHandler: true);
 
-            try
+            using var response = await client.SendAsync(_request, HttpCompletionOption.ResponseHeadersRead, token);
+            await using var stream = await response.Content.ReadAsStreamAsync(token);
+            using var reader = new StreamReader(stream, Encoding.ASCII);
+            var buf = new char[64];
+            int bytesRead;
+            while ((bytesRead = await reader.ReadAsync(buf.AsMemory(), token)) > 0)
             {
-                using var response = await client.SendAsync(_request, HttpCompletionOption.ResponseHeadersRead, token);
-                await using var stream = await response.Content.ReadAsStreamAsync(token);
-                using var reader = new StreamReader(stream, Encoding.ASCII);
-                var buf = new char[64];
-                int bytesRead;
-                while ((bytesRead = await reader.ReadAsync(buf, 0, buf.Length)) > 0)
-                {
-                    BytesReceived += bytesRead;
-                    token.ThrowIfCancellationRequested();
-                    await Writer.WriteAsync(new string(buf, 0, bytesRead));
-                }
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.ToString());
+                BytesReceived += bytesRead;
+                await Writer.WriteAsync(new string(buf, 0, bytesRead));
             }
         }
     }

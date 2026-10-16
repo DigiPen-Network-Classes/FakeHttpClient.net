@@ -27,7 +27,7 @@ the instructor and/or TAs.
 
 First, start your CS260_Assignment3 program, either in the Visual Studio Debugger or
 from the command line. Make sure that your program is listening on port 8888.
-(If for some reason you need to change the port, you can do so by passing the `-Port` argument, 
+(If for some reason you need to change the port, you can do so by passing the `--proxy-port` argument, 
 see the help screen for details.)
 
 Once that's running, you can execute the FakeHttpClient to test your proxy server.

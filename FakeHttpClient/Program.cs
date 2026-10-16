@@ -6,6 +6,7 @@ namespace FakeHttpClient;
 internal class Program
 {
     public const int TimeoutSeconds = 20;
+    private const int GraceSeconds = 5;
     private static bool Success { get; set; }
 
     /// <summary>
@@ -58,8 +59,15 @@ internal class Program
             // this doesn't 'await' correctly. Fix when 2.0.0.0 is released...
             // and anyway, DragonFruit is deprecated and "going away" at 2.0.0.
             // see https://github.com/dotnet/command-line-api/issues/2152
+            //
+            // The requests themselves stop at TimeoutSeconds (via cts) and write their results;
+            // don't abandon them here at the same moment or their output files are lost.
+            // The extra grace period is only a backstop in case something ignores cancellation.
             var cts = new CancellationTokenSource(TimeSpan.FromSeconds(TimeoutSeconds));
-            RunTests(args, cts).Wait(cts.Token);
+            if (!RunTests(args, cts).Wait(TimeSpan.FromSeconds(TimeoutSeconds + GraceSeconds)))
+            {
+                Console.WriteLine("Tests did not finish after the timeout; giving up.");
+            }
         }
         catch (OperationCanceledException e)
         {
