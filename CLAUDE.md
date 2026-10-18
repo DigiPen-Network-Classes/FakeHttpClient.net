@@ -32,7 +32,9 @@ Versioning is driven by **Nerdbank.GitVersioning** (`version.json`); `nbgv get-v
 
 The CLI is defined entirely by the parameters of `Program.Main` via **System.CommandLine.DragonFruit** — there is no explicit command/option wiring. To add a flag, add a parameter to `Main` and document it with an XML `<param>` comment (DragonFruit surfaces those in `--help`). DragonFruit is deprecated/prerelease here; `Main` deliberately `.Wait()`s instead of awaiting because of a known DragonFruit async bug (see comment in `Program.cs`).
 
-Key flags: `--url` (single request), `--test-suite` (named embedded JSON resource), `--test-file-override` (path to local JSON), `--interactive` (console vs. file output), `--raw` (raw TCP vs. HttpClient — **defaults to true**), `--proxy-port`, `--proxy-ip`, `--test-name`.
+Key flags: `--url` (single request), `--test-suite` (named embedded JSON resource), `--test-file-override` (path to local JSON), `--interactive` (console vs. file output), `--raw` (raw TCP vs. HttpClient — **defaults to true**), `--proxy-port`, `--proxy-ip`, `--test-name`, `--mode` (request mode for `--url`).
+
+Request modes (`RequestMode`, a `[Flags]` enum) change how `TcpProxyRequest` sends the request: `NoHalfClose` skips the `Shutdown(Send)` after the request (catches proxies that wait for `recv()==0`), `SplitRequest` sends it in pieces 250ms apart, including splitting the final `\r\n\r\n` (catches single-`recv()` proxies). Suites set them per test with a `"Mode"` JSON field (e.g. `"NoHalfClose, SplitRequest"`); `HttpProxyRequest` ignores them with a warning.
 
 ## Architecture
 

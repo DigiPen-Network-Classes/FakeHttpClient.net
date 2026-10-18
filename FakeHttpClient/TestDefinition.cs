@@ -8,6 +8,7 @@ namespace FakeHttpClient
     {
         public string Name { get; set; } = "";
         public string Url { get; set; } = "";
+        public RequestMode Mode { get; set; } = RequestMode.Normal;
 
         /// <summary>
         /// A URL containing this token has it replaced, at load time, with the current IP address of
@@ -20,7 +21,7 @@ namespace FakeHttpClient
 
         public override string ToString()
         {
-            return $"{Name}: {Url}";
+            return Mode == RequestMode.Normal ? $"{Name}: {Url}" : $"{Name}: {Url} ({Mode})";
         }
 
         /// <summary>

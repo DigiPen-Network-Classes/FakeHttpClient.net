@@ -3,16 +3,24 @@ using System.Text;
 
 namespace FakeHttpClient;
 
-public class TcpProxyRequest(bool interactive, string url, string name, int proxyPort, string proxyIp)
+public class TcpProxyRequest(bool interactive, string url, string name, int proxyPort, string proxyIp, RequestMode mode = RequestMode.Normal)
     : ProxyRequest(interactive, url, name, proxyPort, proxyIp)
 {
+    /// <summary>
+    /// Pause between pieces of a split request: long enough that each piece arrives as its own recv().
+    /// </summary>
+    private static readonly TimeSpan SplitDelay = TimeSpan.FromMilliseconds(250);
+
     private TcpClient? _client;
+
+    protected override string Description => mode == RequestMode.Normal ? "" : $" ({mode})";
     private Uri? _targetUri;
 
     protected override async Task PrepareTest(CancellationToken token)
     {
         _targetUri = new Uri(Url);
-        _client = new TcpClient();
+        // send each piece of a split request immediately instead of letting Nagle combine them
+        _client = new TcpClient { NoDelay = true };
         await _client.ConnectAsync(ProxyIp, ProxyPort, token);
     }
 
@@ -26,14 +34,28 @@ public class TcpProxyRequest(bool interactive, string url, string name, int prox
         var writer = new StreamWriter(stream, Encoding.ASCII);
         var reader = new StreamReader(stream, Encoding.ASCII);
 
-        await writer.WriteAsync($"GET {_targetUri.PathAndQuery} HTTP/1.1\r\n" +
-                                $"Host: {_targetUri.Host}\r\n" +
-                                "Connection: close\r\n" +
-                                "User-Agent: Curl/8.9.1\r\n" +
-                                "Accept: */*\r\n" +
-                                "\r\n");
-        await writer.FlushAsync(token);
-        _client.Client.Shutdown(SocketShutdown.Send);
+        var request = $"GET {_targetUri.PathAndQuery} HTTP/1.1\r\n" +
+                      $"Host: {_targetUri.Host}\r\n" +
+                      "Connection: close\r\n" +
+                      "User-Agent: Curl/8.9.1\r\n" +
+                      "Accept: */*\r\n" +
+                      "\r\n";
+
+        var pieces = mode.HasFlag(RequestMode.SplitRequest) ? SplitRequest(request) : [request];
+        for (var i = 0; i < pieces.Count; i++)
+        {
+            if (i > 0)
+            {
+                await Task.Delay(SplitDelay, token);
+            }
+            await writer.WriteAsync(pieces[i]);
+            await writer.FlushAsync(token);
+        }
+
+        if (!mode.HasFlag(RequestMode.NoHalfClose))
+        {
+            _client.Client.Shutdown(SocketShutdown.Send);
+        }
 
         // Read the raw response until the proxy closes the connection.
         // Errors (e.g. a reset instead of a graceful close) propagate to ProxyRequest, which reports them as a failure.
@@ -44,6 +66,29 @@ public class TcpProxyRequest(bool interactive, string url, string name, int prox
             BytesReceived += bytesRead;
             await Writer.WriteAsync(new string(buffer, 0, bytesRead));
         }
+    }
+
+    /// <summary>
+    /// Split the request into pieces that break the request line, the Host header, and the final
+    /// "\r\n\r\n" (sent as "\r\n\r" + "\n"), so a proxy must keep reading until it sees the whole terminator.
+    /// </summary>
+    private static List<string> SplitRequest(string request)
+    {
+        var cuts = new[]
+        {
+            request.IndexOf(" HTTP/1.1", StringComparison.Ordinal) + 5, // inside "HTTP/1.1"
+            request.IndexOf("Host: ", StringComparison.Ordinal) + 3,    // inside "Host"
+            request.Length - 1,                                         // before the last "\n"
+        };
+        var pieces = new List<string>();
+        var start = 0;
+        foreach (var cut in cuts)
+        {
+            pieces.Add(request[start..cut]);
+            start = cut;
+        }
+        pieces.Add(request[start..]);
+        return pieces;
     }
 
     public override void Dispose()

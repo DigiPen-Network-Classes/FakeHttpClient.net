@@ -56,6 +56,28 @@ FakeHttpClient.exe, and you should note the timing of each request -- they shoul
 the same amount of time (give or take a second) -- if the first takes 5 seconds, the 2nd takes
 10 seconds, the 3rd takes 15 seconds, etc., then you have a problem!
 
+## Request Modes
+
+Real clients don't all send requests the same way, and your proxy has to handle each of them.
+By default the FakeHttpClient sends the whole request at once and then shuts down its sending side.
+These modes change that:
+
+* `NoHalfClose` keeps the sending side open while waiting for the response, like curl or a browser.
+  If your proxy waits for `recv()` to return 0 before it reads the request, this test will hang and
+  report `FAIL! (Timeout)`. Read until you see the blank line (`\r\n\r\n`) instead.
+* `SplitRequest` sends the request in several pieces with short pauses between them, including splitting
+  the final `\r\n\r\n`. If your proxy reads the request with a single `recv()`, it will only see part of it.
+
+`multi.json` includes one test for each mode. To try a mode on a single URL:
+
+```pwsh
+./FakeHttpClient.exe --url http://cs260.meancat.com/delay --mode NoHalfClose
+./FakeHttpClient.exe --url http://cs260.meancat.com/delay --mode "NoHalfClose,SplitRequest"
+```
+
+In a test suite file, add a `"Mode"` field to a test (for example `"Mode": "SplitRequest"`).
+Modes only apply to the raw TCP client (`--raw true`, the default).
+
 ## File Results
 
 On success, there should be a number of "(test-name)-(number).txt" files, depending on how many

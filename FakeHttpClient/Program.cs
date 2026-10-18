@@ -39,6 +39,7 @@ internal class Program
     /// <param name="url">If given a url, request that url and output either to file or console depending on interactive flag</param>
     /// <param name="testName">If given, used to name the output file when interactive is false</param>
     /// <param name="raw">If true, use raw TCP Proxy instead of HTTP Proxy (HTTP Proxy just returns the body, not the raw stream)</param>
+    /// <param name="mode">How to send the request when using --url: Normal, NoHalfClose, SplitRequest, or a comma-separated combination (requires --raw true). Test suites set this per test.</param>
     public static Task Main(string testSuite = "",
         int proxyPort = 8888,
         string proxyIp = "127.0.0.1",
@@ -46,9 +47,10 @@ internal class Program
         string url = "",
         string testName = "",
         string testFileOverride = "",
-        bool raw = true)
+        bool raw = true,
+        string mode = "")
     {
-        var args = new RunConfig(testSuite, proxyPort, proxyIp, interactive, url, testName, testFileOverride, raw);
+        var args = new RunConfig(testSuite, proxyPort, proxyIp, interactive, url, testName, testFileOverride, raw, mode);
         args.Validate();
         // allow more than 2 connections to the same host
         ServicePointManager.DefaultConnectionLimit = 20;
@@ -90,7 +92,7 @@ internal class Program
         var sw = Stopwatch.StartNew();
         if (args.ExecuteOne)
         {
-            using var request = ProxyRequestFactory.CreateProxyRequest(args.Interactive, args.Url, args.TestName, args.ProxyPort, args.ProxyIp, args.RawTcp);
+            using var request = ProxyRequestFactory.CreateProxyRequest(args.Interactive, args.Url, args.TestName, args.ProxyPort, args.ProxyIp, args.RawTcp, args.Mode);
             await request.ExecuteAsync(cts.Token);
             Success = true; // so we don't interpret the cancellation as a failure
             await cts.CancelAsync();

@@ -10,6 +10,7 @@ namespace FakeHttpClient;
         public string TestName { get; private set; }
         public string TestFileOverride { get; }
         public bool RawTcp { get; }
+        public RequestMode Mode { get; }
 
         public RunConfig(string testSuite,
             int proxyPort,
@@ -18,7 +19,8 @@ namespace FakeHttpClient;
             string url,
             string testName,
             string testFileOverride,
-            bool rawTcp)
+            bool rawTcp,
+            string mode)
         {
 
             TestSuite = testSuite;
@@ -29,6 +31,7 @@ namespace FakeHttpClient;
             TestName = testName;
             TestFileOverride = testFileOverride;
             RawTcp = rawTcp;
+            Mode = RequestModeParser.Parse(mode);
         }
 
         private bool HasNoInput => string.IsNullOrEmpty(Url) && string.IsNullOrEmpty(TestSuite) && string.IsNullOrEmpty(TestFileOverride);

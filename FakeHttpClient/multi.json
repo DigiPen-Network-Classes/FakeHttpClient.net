@@ -26,5 +26,15 @@
   {
     "Name": "delay-ip-1",
     "Url": "http://{meancat-ip}/delay"
+  },
+  {
+    "Name": "delay-no-half-close",
+    "Url": "http://cs260.meancat.com/delay",
+    "Mode": "NoHalfClose"
+  },
+  {
+    "Name": "delay-split-request",
+    "Url": "http://cs260.meancat.com/delay",
+    "Mode": "SplitRequest"
   }
 ]

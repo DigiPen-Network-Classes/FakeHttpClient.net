@@ -40,12 +40,17 @@ namespace FakeHttpClient
         /// <param name="proxyPort"></param>
         /// <param name="proxyIp"></param>
         /// <param name="rawRequest"></param>
+        /// <param name="mode">how the raw TCP client sends its request (ignored by the HttpClient version)</param>
         /// <returns></returns>
-        public static IProxyRequest CreateProxyRequest(bool interactive, string url, string name, int proxyPort, string proxyIp, bool rawRequest = false)
+        public static IProxyRequest CreateProxyRequest(bool interactive, string url, string name, int proxyPort, string proxyIp, bool rawRequest = false, RequestMode mode = RequestMode.Normal)
         {
             if (rawRequest)
             {
-                return new TcpProxyRequest(interactive, url, name, proxyPort, proxyIp);
+                return new TcpProxyRequest(interactive, url, name, proxyPort, proxyIp, mode);
+            }
+            if (mode != RequestMode.Normal)
+            {
+                Console.WriteLine($"WARNING: mode {mode} requires --raw true; ignoring it for {url}");
             }
             return new HttpProxyRequest(interactive, url, name, proxyPort, proxyIp);
         }
@@ -84,6 +89,11 @@ namespace FakeHttpClient
         protected int BytesReceived { get; set; }
 
         /// <summary>
+        /// Extra detail for the Begin Test line, e.g. the request mode.
+        /// </summary>
+        protected virtual string Description => "";
+
+        /// <summary>
         /// Set by subclasses when the transfer ended because of an error rather than a graceful close.
         /// </summary>
         protected Exception? TransportError { get; set; }
@@ -106,7 +116,7 @@ namespace FakeHttpClient
 
         public async Task ExecuteAsync(CancellationToken token)
         {
-            await Writer.WriteLineAsync($"Begin Test {Name}: {Url} {DateTime.Now}");
+            await Writer.WriteLineAsync($"Begin Test {Name}: {Url}{Description} {DateTime.Now}");
             var sw = Stopwatch.StartNew();
             try
             {
