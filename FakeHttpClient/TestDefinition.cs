@@ -18,6 +18,12 @@ namespace FakeHttpClient
         /// <summary>Time limit for this test; defaults to the usual threshold when not set.</summary>
         public int? MaxMs { get; set; }
 
+        // Optional timing (raw TCP mode only for StallMs).
+        /// <summary>Wait this long before connecting; not counted in the test's time.</summary>
+        public int? StartDelayMs { get; set; }
+        /// <summary>Connect, then send nothing for this long before sending the request; added to the time limit.</summary>
+        public int? StallMs { get; set; }
+
         [JsonIgnore]
         public TestExpectations Expectations => new(ExpectStatus, ExpectBodyLength, ExpectSha256, MaxMs);
 

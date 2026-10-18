@@ -89,11 +89,12 @@ internal class Program
     }
 
     /// <summary>
-    /// The overall timeout: the default, or longer if some test in the suite allows more time (MaxMs).
+    /// The overall timeout: the default, or longer if some test in the suite needs more time
+    /// (a longer MaxMs, a start delay, or a stall).
     /// </summary>
     private static int EffectiveTimeoutSeconds(List<TestDefinition>? tests)
     {
-        var longestMs = tests?.Max(t => t.MaxMs) ?? 0;
+        var longestMs = tests?.Max(t => (t.StartDelayMs ?? 0) + (t.StallMs ?? 0) + (t.MaxMs ?? 0)) ?? 0;
         return Math.Max(TimeoutSeconds, (int)Math.Ceiling(longestMs / 1000.0) + 10);
     }
 
@@ -103,7 +104,8 @@ internal class Program
         var sw = Stopwatch.StartNew();
         if (args.ExecuteOne)
         {
-            using var request = ProxyRequestFactory.CreateProxyRequest(args.Interactive, args.Url, args.TestName, args.ProxyPort, args.ProxyIp, args.RawTcp, args.Mode);
+            var test = new TestDefinition { Name = args.TestName, Url = args.Url, Mode = args.Mode };
+            using var request = ProxyRequestFactory.CreateProxyRequest(args.Interactive, test, args.ProxyPort, args.ProxyIp, args.RawTcp);
             await request.ExecuteAsync(cts.Token);
             Success = true; // so we don't interpret the cancellation as a failure
             await cts.CancelAsync();

@@ -25,7 +25,15 @@ public class TcpProxyRequest(bool interactive, string url, string name, int prox
 
     private TcpClient? _client;
 
-    protected override string Description => mode == RequestMode.Normal ? "" : $" ({mode})";
+    /// <summary>
+    /// Connect, then send nothing for this long before sending the request.
+    /// </summary>
+    public int StallMs { get; init; }
+
+    protected override int DeliberateDelayMs => StallMs;
+
+    protected override string Description =>
+        (mode == RequestMode.Normal ? "" : $" ({mode})") + (StallMs > 0 ? $" (stall {StallMs}ms before sending)" : "");
     private Uri? _targetUri;
 
     protected override async Task PrepareTest(CancellationToken token)
@@ -43,6 +51,12 @@ public class TcpProxyRequest(bool interactive, string url, string name, int prox
             throw new InvalidOperationException("Client or target URI not initialized.");
         }
         var stream = _client.GetStream();
+
+        // A stalled client: connected, but silent. The proxy must not let this hold up other clients.
+        if (StallMs > 0)
+        {
+            await Task.Delay(StallMs, token);
+        }
         var writer = new StreamWriter(stream, Encoding.ASCII);
 
         var request = $"GET {_targetUri.PathAndQuery} HTTP/1.1\r\n" +

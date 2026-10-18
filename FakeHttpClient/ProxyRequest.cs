@@ -48,32 +48,32 @@ namespace FakeHttpClient
     public class ProxyRequestFactory
     {
         /// <summary>
-        /// Create the ProxyRequest to run this test based on parameters.
+        /// Create the ProxyRequest to run this test.
         /// </summary>
-        /// <param name="interactive"></param>
-        /// <param name="url"></param>
-        /// <param name="name"></param>
+        /// <param name="interactive">write to the console instead of a file</param>
+        /// <param name="test">the URL, name, request mode, timing, and expectations</param>
         /// <param name="proxyPort"></param>
         /// <param name="proxyIp"></param>
-        /// <param name="rawRequest"></param>
-        /// <param name="mode">how the raw TCP client sends its request (ignored by the HttpClient version)</param>
-        /// <param name="expectations">what the response should look like (checked by the raw TCP version only)</param>
-        /// <returns></returns>
-        public static IProxyRequest CreateProxyRequest(bool interactive, string url, string name, int proxyPort, string proxyIp, bool rawRequest = false,
-            RequestMode mode = RequestMode.Normal, TestExpectations? expectations = null)
+        /// <param name="rawRequest">use the raw TCP client (required for modes, stalls, and expectations)</param>
+        public static IProxyRequest CreateProxyRequest(bool interactive, TestDefinition test, int proxyPort, string proxyIp, bool rawRequest = false)
         {
             if (rawRequest)
             {
-                return new TcpProxyRequest(interactive, url, name, proxyPort, proxyIp, mode)
+                return new TcpProxyRequest(interactive, test.Url, test.Name, proxyPort, proxyIp, test.Mode)
                 {
-                    Expectations = expectations ?? TestExpectations.None
+                    Expectations = test.Expectations,
+                    StartDelayMs = test.StartDelayMs ?? 0,
+                    StallMs = test.StallMs ?? 0,
                 };
             }
-            if (mode != RequestMode.Normal || (expectations != null && expectations != TestExpectations.None))
+            if (test.Mode != RequestMode.Normal || test.StallMs != null || test.Expectations != TestExpectations.None)
             {
-                Console.WriteLine($"WARNING: request modes and response expectations require --raw true; ignoring them for {url}");
+                Console.WriteLine($"WARNING: request modes, stalls, and response expectations require --raw true; ignoring them for {test.Url}");
             }
-            return new HttpProxyRequest(interactive, url, name, proxyPort, proxyIp);
+            return new HttpProxyRequest(interactive, test.Url, test.Name, proxyPort, proxyIp)
+            {
+                StartDelayMs = test.StartDelayMs ?? 0,
+            };
         }
 
         /// <summary>
@@ -117,6 +117,17 @@ namespace FakeHttpClient
         public TestExpectations Expectations { get; init; } = TestExpectations.None;
 
         /// <summary>
+        /// Wait this long before connecting (not counted in the test's time), e.g. so another test's
+        /// stalled connection is accepted first.
+        /// </summary>
+        public int StartDelayMs { get; init; }
+
+        /// <summary>
+        /// Time the test deliberately spends doing nothing after connecting; added to the time limit.
+        /// </summary>
+        protected virtual int DeliberateDelayMs => 0;
+
+        /// <summary>
         /// Extra detail for the Begin Test line, e.g. the request mode.
         /// </summary>
         protected virtual string Description => "";
@@ -144,6 +155,17 @@ namespace FakeHttpClient
 
         public async Task ExecuteAsync(CancellationToken token)
         {
+            if (StartDelayMs > 0)
+            {
+                try
+                {
+                    await Task.Delay(StartDelayMs, token);
+                }
+                catch (OperationCanceledException)
+                {
+                    // the timeout fired first; fall through and report it
+                }
+            }
             await Writer.WriteLineAsync($"Begin Test {Name}: {Url}{Description} {DateTime.Now}");
             var sw = Stopwatch.StartNew();
             try
@@ -206,7 +228,7 @@ namespace FakeHttpClient
             {
                 return TestResult.WrongContent;
             }
-            if (elapsedMilliseconds >= (Expectations.MaxMs ?? ThresholdMilliseconds))
+            if (elapsedMilliseconds >= (Expectations.MaxMs ?? ThresholdMilliseconds) + DeliberateDelayMs)
             {
                 return TestResult.TooSlow;
             }

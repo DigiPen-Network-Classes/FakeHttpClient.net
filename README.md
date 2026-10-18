@@ -107,7 +107,9 @@ if two runs of `/delay` give different hashes, something is changing the data. P
 
 Test suites can also check the status, body length, or SHA-256 (`ExpectStatus`, `ExpectBodyLength`,
 `ExpectSha256`) and set a time limit (`MaxMs`); a mismatch shows as `WrongStatus`, `WrongLength`,
-or `WrongContent`. Output files stop after the first 1 MB of each response, but the whole
+or `WrongContent`. Suites can also change timing: `StallMs` makes a test connect and then send
+nothing for that long (its time limit grows by the same amount), and `StartDelayMs` makes a test
+wait before connecting. Output files stop after the first 1 MB of each response, but the whole
 response is still counted and checked.
 
 ## File Results
