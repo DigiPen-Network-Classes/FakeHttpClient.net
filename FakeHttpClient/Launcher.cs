@@ -32,7 +32,7 @@ public class Launcher
         var token = tokenSource.Token;
         // ignore interactive
         var requests = _tests
-            .Select(test => ProxyRequestFactory.CreateProxyRequest(false, test.Url, test.Name, _proxyPort, _proxyIp, _tcpProxy, test.Mode))
+            .Select(test => ProxyRequestFactory.CreateProxyRequest(false, test.Url, test.Name, _proxyPort, _proxyIp, _tcpProxy, test.Mode, test.Expectations))
             .ToList();
         try
         {

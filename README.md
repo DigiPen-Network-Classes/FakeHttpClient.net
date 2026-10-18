@@ -80,6 +80,36 @@ These modes change that:
 In a test suite file, add a `"Mode"` field to a test (for example `"Mode": "SplitRequest"`).
 Modes only apply to the raw TCP client (`--raw true`, the default).
 
+## Reading the Results
+
+Each test ends with a summary like this:
+
+```
+End Test: Total time for delay-dns-1 (http://cs260.meancat.com/delay): 5076ms.
+Bytes Received: 1931
+Response: status 200, body 1482 bytes, SHA-256 1faae000a81...
+ Result: pass!
+```
+
+The `Response` line comes from parsing what your proxy sent back. The body length and SHA-256
+are measured after removing chunked encoding, so the same page always gives the same values;
+if two runs of `/delay` give different hashes, something is changing the data. Possible results:
+
+| Result | Meaning |
+|---|---|
+| `pass!` | the response arrived complete, in time |
+| `TooSlow` | it took longer than allowed (usually 7 seconds): requests may be handled one at a time |
+| `Timeout` | your proxy never closed the connection |
+| `Incomplete` | the connection closed before the whole response arrived (short of `Content-Length`, or no final chunk) |
+| `ConnectionReset` | your proxy reset the connection instead of closing it gracefully |
+| `NotEnoughData` | almost nothing came back |
+| `Error` | something else went wrong; see the `Error:` line above it |
+
+Test suites can also check the status, body length, or SHA-256 (`ExpectStatus`, `ExpectBodyLength`,
+`ExpectSha256`) and set a time limit (`MaxMs`); a mismatch shows as `WrongStatus`, `WrongLength`,
+or `WrongContent`. Output files stop after the first 1 MB of each response, but the whole
+response is still counted and checked.
+
 ## File Results
 
 On success, there should be a number of "(test-name)-(number).txt" files, depending on how many

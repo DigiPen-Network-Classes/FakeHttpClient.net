@@ -65,8 +65,10 @@ internal class Program
             // The requests themselves stop at TimeoutSeconds (via cts) and write their results;
             // don't abandon them here at the same moment or their output files are lost.
             // The extra grace period is only a backstop in case something ignores cancellation.
-            var cts = new CancellationTokenSource(TimeSpan.FromSeconds(TimeoutSeconds));
-            if (!RunTests(args, cts).Wait(TimeSpan.FromSeconds(TimeoutSeconds + GraceSeconds)))
+            var tests = args.ExecuteOne ? null : args.ReadTests().GetAwaiter().GetResult();
+            var timeoutSeconds = EffectiveTimeoutSeconds(tests);
+            var cts = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
+            if (!RunTests(args, tests, cts).Wait(TimeSpan.FromSeconds(timeoutSeconds + GraceSeconds)))
             {
                 Console.WriteLine("Tests did not finish after the timeout; giving up.");
             }
@@ -86,7 +88,16 @@ internal class Program
         return Task.CompletedTask;
     }
 
-    private static async Task RunTests(RunConfig args, CancellationTokenSource cts)
+    /// <summary>
+    /// The overall timeout: the default, or longer if some test in the suite allows more time (MaxMs).
+    /// </summary>
+    private static int EffectiveTimeoutSeconds(List<TestDefinition>? tests)
+    {
+        var longestMs = tests?.Max(t => t.MaxMs) ?? 0;
+        return Math.Max(TimeoutSeconds, (int)Math.Ceiling(longestMs / 1000.0) + 10);
+    }
+
+    private static async Task RunTests(RunConfig args, List<TestDefinition>? tests, CancellationTokenSource cts)
     {
         Console.WriteLine($"Begin - {DateTime.Now}");
         var sw = Stopwatch.StartNew();
@@ -99,8 +110,7 @@ internal class Program
         }
         else
         {
-            var tests = await args.ReadTests();
-            var actor = new Launcher(tests, args.Interactive, args.ProxyPort, args.ProxyIp, args.RawTcp);
+            var actor = new Launcher(tests!, args.Interactive, args.ProxyPort, args.ProxyIp, args.RawTcp);
             await actor.ExecuteAsync(cts);
             Success = true; // so we don't interpret the cancellation as a failure
             await cts.CancelAsync();

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace FakeHttpClient
 {
@@ -9,6 +10,16 @@ namespace FakeHttpClient
         public string Name { get; set; } = "";
         public string Url { get; set; } = "";
         public RequestMode Mode { get; set; } = RequestMode.Normal;
+
+        // Optional expectations, checked against the parsed response (raw TCP mode only).
+        public int? ExpectStatus { get; set; }
+        public long? ExpectBodyLength { get; set; }
+        public string? ExpectSha256 { get; set; }
+        /// <summary>Time limit for this test; defaults to the usual threshold when not set.</summary>
+        public int? MaxMs { get; set; }
+
+        [JsonIgnore]
+        public TestExpectations Expectations => new(ExpectStatus, ExpectBodyLength, ExpectSha256, MaxMs);
 
         /// <summary>
         /// A URL containing this token has it replaced, at load time, with the current IP address of
@@ -119,5 +130,16 @@ namespace FakeHttpClient
                 return null;
             }
         }
+    }
+
+    /// <summary>
+    /// What a test expects of the response. Any value left null is not checked.
+    /// </summary>
+    public record TestExpectations(int? Status, long? BodyLength, string? Sha256, int? MaxMs)
+    {
+        public static readonly TestExpectations None = new(null, null, null, null);
+
+        /// <summary>True if the test checks the body itself, so the minimum-bytes heuristic doesn't apply.</summary>
+        public bool ChecksBody => BodyLength != null || Sha256 != null;
     }
 }

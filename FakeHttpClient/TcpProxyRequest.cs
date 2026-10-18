@@ -18,6 +18,11 @@ public class TcpProxyRequest(bool interactive, string url, string name, int prox
     private const int PaddingHeaderCount = 20;
     private const int PaddingHeaderValueLength = 480;
 
+    /// <summary>
+    /// Write at most this much of the response to the output; large responses are still counted and hashed.
+    /// </summary>
+    private const int OutputLimitBytes = 1024 * 1024;
+
     private TcpClient? _client;
 
     protected override string Description => mode == RequestMode.Normal ? "" : $" ({mode})";
@@ -39,7 +44,6 @@ public class TcpProxyRequest(bool interactive, string url, string name, int prox
         }
         var stream = _client.GetStream();
         var writer = new StreamWriter(stream, Encoding.ASCII);
-        var reader = new StreamReader(stream, Encoding.ASCII);
 
         var request = $"GET {_targetUri.PathAndQuery} HTTP/1.1\r\n" +
                       $"Host: {_targetUri.Host}\r\n" +
@@ -65,14 +69,26 @@ public class TcpProxyRequest(bool interactive, string url, string name, int prox
             _client.Client.Shutdown(SocketShutdown.Send);
         }
 
-        // Read the raw response until the proxy closes the connection.
+        // Read the raw response until the proxy closes the connection, parsing and hashing it as it arrives.
         // Errors (e.g. a reset instead of a graceful close) propagate to ProxyRequest, which reports them as a failure.
-        var buffer = new char[128];
+        Response = new HttpResponseInspector();
+        var buffer = new byte[64 * 1024];
+        var written = 0;
         int bytesRead;
-        while ((bytesRead = await reader.ReadAsync(buffer.AsMemory(), token)) > 0)
+        while ((bytesRead = await stream.ReadAsync(buffer, token)) > 0)
         {
             BytesReceived += bytesRead;
-            await Writer.WriteAsync(new string(buffer, 0, bytesRead));
+            Response.Feed(buffer.AsSpan(0, bytesRead));
+            if (written < OutputLimitBytes)
+            {
+                var show = Math.Min(bytesRead, OutputLimitBytes - written);
+                await Writer.WriteAsync(Encoding.ASCII.GetString(buffer, 0, show));
+                written += show;
+                if (written == OutputLimitBytes)
+                {
+                    await Writer.WriteLineAsync($"\n... (output stops after {OutputLimitBytes} bytes; the rest is still counted and checked)");
+                }
+            }
         }
     }
 
@@ -122,6 +138,7 @@ public class TcpProxyRequest(bool interactive, string url, string name, int prox
     public override void Dispose()
     {
         _client?.Dispose();
+        Response?.Dispose();
         base.Dispose();
     }
 }

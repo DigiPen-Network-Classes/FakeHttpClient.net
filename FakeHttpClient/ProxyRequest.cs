@@ -26,7 +26,23 @@ namespace FakeHttpClient
         /// <summary>
         /// the overall timeout was reached before the proxy closed the connection
         /// </summary>
-        Timeout
+        Timeout,
+        /// <summary>
+        /// the connection closed before the whole response arrived (short of Content-Length, or no final chunk)
+        /// </summary>
+        Incomplete,
+        /// <summary>
+        /// the HTTP status code was not the one the test expected
+        /// </summary>
+        WrongStatus,
+        /// <summary>
+        /// the response body was not the length the test expected
+        /// </summary>
+        WrongLength,
+        /// <summary>
+        /// the response body's SHA-256 did not match what the test expected
+        /// </summary>
+        WrongContent
     }
 
     public class ProxyRequestFactory
@@ -41,16 +57,21 @@ namespace FakeHttpClient
         /// <param name="proxyIp"></param>
         /// <param name="rawRequest"></param>
         /// <param name="mode">how the raw TCP client sends its request (ignored by the HttpClient version)</param>
+        /// <param name="expectations">what the response should look like (checked by the raw TCP version only)</param>
         /// <returns></returns>
-        public static IProxyRequest CreateProxyRequest(bool interactive, string url, string name, int proxyPort, string proxyIp, bool rawRequest = false, RequestMode mode = RequestMode.Normal)
+        public static IProxyRequest CreateProxyRequest(bool interactive, string url, string name, int proxyPort, string proxyIp, bool rawRequest = false,
+            RequestMode mode = RequestMode.Normal, TestExpectations? expectations = null)
         {
             if (rawRequest)
             {
-                return new TcpProxyRequest(interactive, url, name, proxyPort, proxyIp, mode);
+                return new TcpProxyRequest(interactive, url, name, proxyPort, proxyIp, mode)
+                {
+                    Expectations = expectations ?? TestExpectations.None
+                };
             }
-            if (mode != RequestMode.Normal)
+            if (mode != RequestMode.Normal || (expectations != null && expectations != TestExpectations.None))
             {
-                Console.WriteLine($"WARNING: mode {mode} requires --raw true; ignoring it for {url}");
+                Console.WriteLine($"WARNING: request modes and response expectations require --raw true; ignoring them for {url}");
             }
             return new HttpProxyRequest(interactive, url, name, proxyPort, proxyIp);
         }
@@ -86,7 +107,14 @@ namespace FakeHttpClient
         protected int ProxyPort { get; }
         protected string ProxyIp { get; }
 
-        protected int BytesReceived { get; set; }
+        protected long BytesReceived { get; set; }
+
+        /// <summary>
+        /// The parsed response, when the subclass sees the raw response (headers and all).
+        /// </summary>
+        protected HttpResponseInspector? Response { get; set; }
+
+        public TestExpectations Expectations { get; init; } = TestExpectations.None;
 
         /// <summary>
         /// Extra detail for the Begin Test line, e.g. the request mode.
@@ -139,8 +167,14 @@ namespace FakeHttpClient
                 await HandleException(TransportError);
             }
             var pass = result == TestResult.Success ? "pass!" : $"FAIL! ({result})";
-            await Writer.WriteLineAsync($"\nEnd Test: Total time for {Name} ({Url}): {sw.ElapsedMilliseconds}ms. \nBytes Received: {BytesReceived}\n Result: {pass}");
+            await Writer.WriteLineAsync($"\nEnd Test: Total time for {Name} ({Url}): {sw.ElapsedMilliseconds}ms. \nBytes Received: {BytesReceived}");
+            if (Response is { HeadersComplete: true })
+            {
+                await Writer.WriteLineAsync($"Response: status {Response.StatusCode}, body {Response.BodyLength} bytes{(Response.IsComplete ? "" : " (INCOMPLETE)")}, SHA-256 {Response.BodySha256}");
+            }
+            await Writer.WriteLineAsync($" Result: {pass}");
             await Writer.FlushAsync(CancellationToken.None);
+
         }
 
         protected abstract Task PrepareTest(CancellationToken token);
@@ -156,11 +190,31 @@ namespace FakeHttpClient
             {
                 return TestResult.Timeout;
             }
-            if (elapsedMilliseconds >= ThresholdMilliseconds)
+            if (Response is { HeadersComplete: true, IsComplete: false })
+            {
+                return TestResult.Incomplete;
+            }
+            if (Expectations.Status != null && Response?.StatusCode != Expectations.Status)
+            {
+                return TestResult.WrongStatus;
+            }
+            if (Expectations.BodyLength != null && Response?.BodyLength != Expectations.BodyLength)
+            {
+                return TestResult.WrongLength;
+            }
+            if (Expectations.Sha256 != null && !string.Equals(Response?.BodySha256, Expectations.Sha256, StringComparison.OrdinalIgnoreCase))
+            {
+                return TestResult.WrongContent;
+            }
+            if (elapsedMilliseconds >= (Expectations.MaxMs ?? ThresholdMilliseconds))
             {
                 return TestResult.TooSlow;
             }
-            return BytesReceived < MinimumBytesReceived ? TestResult.NotEnoughData : TestResult.Success;
+            if (!Expectations.ChecksBody && BytesReceived < MinimumBytesReceived)
+            {
+                return TestResult.NotEnoughData;
+            }
+            return TestResult.Success;
         }
 
         private static bool IsConnectionReset(Exception e)
