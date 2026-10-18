@@ -34,7 +34,7 @@ The CLI is defined entirely by the parameters of `Program.Main` via **System.Com
 
 Key flags: `--url` (single request), `--test-suite` (named embedded JSON resource), `--test-file-override` (path to local JSON), `--interactive` (console vs. file output), `--raw` (raw TCP vs. HttpClient — **defaults to true**), `--proxy-port`, `--proxy-ip`, `--test-name`, `--mode` (request mode for `--url`).
 
-Request modes (`RequestMode`, a `[Flags]` enum) change how `TcpProxyRequest` sends the request: `NoHalfClose` skips the `Shutdown(Send)` after the request (catches proxies that wait for `recv()==0`), `SplitRequest` sends it in pieces 250ms apart, including splitting the final `\r\n\r\n` (catches single-`recv()` proxies). Suites set them per test with a `"Mode"` JSON field (e.g. `"NoHalfClose, SplitRequest"`); `HttpProxyRequest` ignores them with a warning.
+Request modes (`RequestMode`, a `[Flags]` enum) change how `TcpProxyRequest` sends the request: `NoHalfClose` skips the `Shutdown(Send)` after the request (catches proxies that wait for `recv()==0`), `SplitRequest` sends it in pieces 250ms apart, including splitting the final `\r\n\r\n` (catches single-`recv()` proxies), `LargeRequest` adds 20 deterministic `X-CS260-Padding-NN` headers for a ~10 KB request (catches small fixed buffers; sized above 8 KB on purpose, since 8192 is a common student buffer). Suites set them per test with a `"Mode"` JSON field (e.g. `"NoHalfClose, SplitRequest"`); `HttpProxyRequest` ignores them with a warning.
 
 ## Architecture
 

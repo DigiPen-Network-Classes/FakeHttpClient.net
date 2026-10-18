@@ -11,6 +11,13 @@ public class TcpProxyRequest(bool interactive, string url, string name, int prox
     /// </summary>
     private static readonly TimeSpan SplitDelay = TimeSpan.FromMilliseconds(250);
 
+    /// <summary>
+    /// Padding for a large request: 20 headers of about 500 bytes each, roughly 10 KB in total.
+    /// Each header stays well under per-header limits (nginx and Apache allow about 8 KB per line).
+    /// </summary>
+    private const int PaddingHeaderCount = 20;
+    private const int PaddingHeaderValueLength = 480;
+
     private TcpClient? _client;
 
     protected override string Description => mode == RequestMode.Normal ? "" : $" ({mode})";
@@ -39,6 +46,7 @@ public class TcpProxyRequest(bool interactive, string url, string name, int prox
                       "Connection: close\r\n" +
                       "User-Agent: Curl/8.9.1\r\n" +
                       "Accept: */*\r\n" +
+                      (mode.HasFlag(RequestMode.LargeRequest) ? PaddingHeaders() : "") +
                       "\r\n";
 
         var pieces = mode.HasFlag(RequestMode.SplitRequest) ? SplitRequest(request) : [request];
@@ -66,6 +74,26 @@ public class TcpProxyRequest(bool interactive, string url, string name, int prox
             BytesReceived += bytesRead;
             await Writer.WriteAsync(new string(buffer, 0, bytesRead));
         }
+    }
+
+    /// <summary>
+    /// Build the padding headers for a large request. The values are deterministic so a byte-exact
+    /// echo of the request can be compared later.
+    /// </summary>
+    private static string PaddingHeaders()
+    {
+        const string alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
+        var sb = new StringBuilder();
+        for (var i = 1; i <= PaddingHeaderCount; i++)
+        {
+            sb.Append($"X-CS260-Padding-{i:D2}: ");
+            for (var j = 0; j < PaddingHeaderValueLength; j++)
+            {
+                sb.Append(alphabet[(i * 7 + j) % alphabet.Length]);
+            }
+            sb.Append("\r\n");
+        }
+        return sb.ToString();
     }
 
     /// <summary>

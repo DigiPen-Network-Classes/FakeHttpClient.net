@@ -36,5 +36,10 @@
     "Name": "delay-split-request",
     "Url": "http://cs260.meancat.com/delay",
     "Mode": "SplitRequest"
+  },
+  {
+    "Name": "delay-large-request",
+    "Url": "http://cs260.meancat.com/delay",
+    "Mode": "LargeRequest"
   }
 ]

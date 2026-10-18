@@ -26,6 +26,13 @@ public enum RequestMode
     /// single recv() will see an incomplete request.
     /// </summary>
     SplitRequest = 2,
+
+    /// <summary>
+    /// Add padding headers so the request is about 10 KB: larger than common 4 KB and 8 KB buffers,
+    /// and more than one recv() for most proxies. A proxy with a small fixed buffer, or one that
+    /// reads the request with a single recv(), will see a truncated request.
+    /// </summary>
+    LargeRequest = 4,
 }
 
 public static class RequestModeParser

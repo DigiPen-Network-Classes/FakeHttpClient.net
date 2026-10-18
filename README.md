@@ -67,12 +67,14 @@ These modes change that:
   report `FAIL! (Timeout)`. Read until you see the blank line (`\r\n\r\n`) instead.
 * `SplitRequest` sends the request in several pieces with short pauses between them, including splitting
   the final `\r\n\r\n`. If your proxy reads the request with a single `recv()`, it will only see part of it.
+* `LargeRequest` adds extra headers so the request is about 10 KB. If your proxy uses a small fixed-size
+  buffer, or reads the request with a single `recv()`, it will only see part of it.
 
 `multi.json` includes one test for each mode. To try a mode on a single URL:
 
 ```pwsh
 ./FakeHttpClient.exe --url http://cs260.meancat.com/delay --mode NoHalfClose
-./FakeHttpClient.exe --url http://cs260.meancat.com/delay --mode "NoHalfClose,SplitRequest"
+./FakeHttpClient.exe --url http://cs260.meancat.com/delay --mode "NoHalfClose,SplitRequest,LargeRequest"
 ```
 
 In a test suite file, add a `"Mode"` field to a test (for example `"Mode": "SplitRequest"`).
