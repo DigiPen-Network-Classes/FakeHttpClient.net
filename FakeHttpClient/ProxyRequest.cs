@@ -92,7 +92,7 @@ namespace FakeHttpClient
     }
     public interface IProxyRequest : IDisposable
     {
-        Task ExecuteAsync(CancellationToken token);
+        Task<TestOutcome> ExecuteAsync(CancellationToken token);
     }
 
     public abstract class ProxyRequest : IProxyRequest
@@ -128,6 +128,11 @@ namespace FakeHttpClient
         protected virtual int DeliberateDelayMs => 0;
 
         /// <summary>
+        /// The request mode, for the results file.
+        /// </summary>
+        protected virtual string ModeName => RequestMode.Normal.ToString();
+
+        /// <summary>
         /// Extra detail for the Begin Test line, e.g. the request mode.
         /// </summary>
         protected virtual string Description => "";
@@ -153,7 +158,7 @@ namespace FakeHttpClient
             Writer = writer;
         }
 
-        public async Task ExecuteAsync(CancellationToken token)
+        public async Task<TestOutcome> ExecuteAsync(CancellationToken token)
         {
             if (StartDelayMs > 0)
             {
@@ -197,6 +202,19 @@ namespace FakeHttpClient
             await Writer.WriteLineAsync($" Result: {pass}");
             await Writer.FlushAsync(CancellationToken.None);
 
+            var parsed = Response is { HeadersComplete: true } ? Response : null;
+            return new TestOutcome(
+                string.IsNullOrEmpty(Name) ? Url : Name,
+                Url,
+                ModeName,
+                result,
+                sw.ElapsedMilliseconds,
+                BytesReceived,
+                parsed?.StatusCode,
+                parsed?.BodyLength,
+                parsed?.BodySha256,
+                parsed?.IsComplete,
+                TransportError?.Message ?? (result == TestResult.Timeout ? "timed out waiting for the proxy" : null));
         }
 
         protected abstract Task PrepareTest(CancellationToken token);

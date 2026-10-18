@@ -7,7 +7,10 @@ internal class Program
 {
     public const int TimeoutSeconds = 20;
     private const int GraceSeconds = 5;
-    private static bool Success { get; set; }
+
+    private const int ExitAllPassed = 0;
+    private const int ExitSomeFailed = 1;
+    private const int ExitToolError = 2;
 
     /// <summary>
     /// FakeHttpClient for testing Assignments in CS 260 Computer Networks I
@@ -39,8 +42,10 @@ internal class Program
     /// <param name="url">If given a url, request that url and output either to file or console depending on interactive flag</param>
     /// <param name="testName">If given, used to name the output file when interactive is false</param>
     /// <param name="raw">If true, use raw TCP Proxy instead of HTTP Proxy (HTTP Proxy just returns the body, not the raw stream)</param>
-    /// <param name="mode">How to send the request when using --url: Normal, NoHalfClose, SplitRequest, or a comma-separated combination (requires --raw true). Test suites set this per test.</param>
-    public static Task Main(string testSuite = "",
+    /// <param name="mode">How to send the request when using --url: Normal, NoHalfClose, SplitRequest, LargeRequest, or a comma-separated combination (requires --raw true). Test suites set this per test.</param>
+    /// <param name="resultsFile">If given, write machine-readable results to this path: CSV if it ends in .csv, otherwise JSON.</param>
+    /// <returns>Exit code: 0 if every test passed, 1 if any test failed, 2 if the tests could not be run.</returns>
+    public static int Main(string testSuite = "",
         int proxyPort = 8888,
         string proxyIp = "127.0.0.1",
         bool interactive = true,
@@ -48,10 +53,20 @@ internal class Program
         string testName = "",
         string testFileOverride = "",
         bool raw = true,
-        string mode = "")
+        string mode = "",
+        string resultsFile = "")
     {
-        var args = new RunConfig(testSuite, proxyPort, proxyIp, interactive, url, testName, testFileOverride, raw, mode);
-        args.Validate();
+        RunConfig args;
+        try
+        {
+            args = new RunConfig(testSuite, proxyPort, proxyIp, interactive, url, testName, testFileOverride, raw, mode);
+            args.Validate();
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"Error: {e.Message}");
+            return ExitToolError;
+        }
         // allow more than 2 connections to the same host
         ServicePointManager.DefaultConnectionLimit = 20;
 
@@ -62,30 +77,39 @@ internal class Program
             // and anyway, DragonFruit is deprecated and "going away" at 2.0.0.
             // see https://github.com/dotnet/command-line-api/issues/2152
             //
-            // The requests themselves stop at TimeoutSeconds (via cts) and write their results;
+            // The requests themselves stop at the timeout (via cts) and write their results;
             // don't abandon them here at the same moment or their output files are lost.
             // The extra grace period is only a backstop in case something ignores cancellation.
             var tests = args.ExecuteOne ? null : args.ReadTests().GetAwaiter().GetResult();
             var timeoutSeconds = EffectiveTimeoutSeconds(tests);
             var cts = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
-            if (!RunTests(args, tests, cts).Wait(TimeSpan.FromSeconds(timeoutSeconds + GraceSeconds)))
+            var started = DateTimeOffset.Now;
+            var sw = Stopwatch.StartNew();
+            var run = RunTests(args, tests, cts);
+            if (!run.Wait(TimeSpan.FromSeconds(timeoutSeconds + GraceSeconds)))
             {
                 Console.WriteLine("Tests did not finish after the timeout; giving up.");
+                return ExitToolError;
             }
-        }
-        catch (OperationCanceledException e)
-        {
-            if (!Success)
+
+            var summary = ResultsWriter.Summarize(started, sw.ElapsedMilliseconds, run.Result);
+            ResultsWriter.WriteTable(Console.Out, summary);
+            if (!string.IsNullOrEmpty(resultsFile))
             {
-                Console.WriteLine($"Cancellation requested or timeout reached: { e.Message}");
+                ResultsWriter.WriteFile(resultsFile, summary);
+                Console.WriteLine($"Results written to {Path.GetFullPath(resultsFile)}");
             }
+            return summary.Failed == 0 ? ExitAllPassed : ExitSomeFailed;
         }
         catch (Exception e)
         {
-            Console.WriteLine($"Exception Running Tests: {e}");
+            var inner = e is AggregateException { InnerException: not null } ae ? ae.InnerException : e;
+            // a missing or malformed suite file is the user's to fix: say what's wrong, skip the stack trace
+            Console.WriteLine(inner is FileNotFoundException or System.Text.Json.JsonException
+                ? $"Error: {inner.Message}"
+                : $"Exception Running Tests: {inner}");
+            return ExitToolError;
         }
-
-        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -98,28 +122,26 @@ internal class Program
         return Math.Max(TimeoutSeconds, (int)Math.Ceiling(longestMs / 1000.0) + 10);
     }
 
-    private static async Task RunTests(RunConfig args, List<TestDefinition>? tests, CancellationTokenSource cts)
+    private static async Task<List<TestOutcome>> RunTests(RunConfig args, List<TestDefinition>? tests, CancellationTokenSource cts)
     {
         Console.WriteLine($"Begin - {DateTime.Now}");
         var sw = Stopwatch.StartNew();
+        List<TestOutcome> outcomes;
         if (args.ExecuteOne)
         {
             var test = new TestDefinition { Name = args.TestName, Url = args.Url, Mode = args.Mode };
             using var request = ProxyRequestFactory.CreateProxyRequest(args.Interactive, test, args.ProxyPort, args.ProxyIp, args.RawTcp);
-            await request.ExecuteAsync(cts.Token);
-            Success = true; // so we don't interpret the cancellation as a failure
-            await cts.CancelAsync();
+            outcomes = [await request.ExecuteAsync(cts.Token)];
         }
         else
         {
             var actor = new Launcher(tests!, args.Interactive, args.ProxyPort, args.ProxyIp, args.RawTcp);
-            await actor.ExecuteAsync(cts);
-            Success = true; // so we don't interpret the cancellation as a failure
-            await cts.CancelAsync();
+            outcomes = await actor.ExecuteAsync(cts);
         }
+        await cts.CancelAsync();
         sw.Stop();
         await Console.Out.WriteLineAsync($"End - {DateTime.Now} (elapsed: {sw.ElapsedMilliseconds} ms)");
         await Console.Out.FlushAsync();
-        await Task.Delay(100);
+        return outcomes;
     }
 }

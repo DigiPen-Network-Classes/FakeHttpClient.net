@@ -32,6 +32,8 @@ public class TcpProxyRequest(bool interactive, string url, string name, int prox
 
     protected override int DeliberateDelayMs => StallMs;
 
+    protected override string ModeName => mode.ToString();
+
     protected override string Description =>
         (mode == RequestMode.Normal ? "" : $" ({mode})") + (StallMs > 0 ? $" (stall {StallMs}ms before sending)" : "");
     private Uri? _targetUri;

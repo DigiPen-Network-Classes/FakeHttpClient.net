@@ -112,6 +112,22 @@ nothing for that long (its time limit grows by the same amount), and `StartDelay
 wait before connecting. Output files stop after the first 1 MB of each response, but the whole
 response is still counted and checked.
 
+## Summary and Exit Code
+
+After every run, FakeHttpClient prints a table with one row per test:
+
+```
+Test                 Result            Time  Status  Body bytes  Error
+-------------------  --------------  ------  ------  ----------  -----
+delay-dns-1          pass            5053ms     200        1482
+delay-split-request  FAIL (Timeout) 19993ms       -           -  timed out waiting for the proxy
+1/2 passed
+```
+
+To save the results for a script, add `--results-file results.json` (or `results.csv` for a
+spreadsheet). The exit code is `0` if every test passed, `1` if any test failed, and `2` if the
+tests couldn't run at all (for example a bad argument or a missing suite file).
+
 ## File Results
 
 On success, there should be a number of "(test-name)-(number).txt" files, depending on how many

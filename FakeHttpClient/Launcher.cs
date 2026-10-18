@@ -27,7 +27,7 @@ public class Launcher
         _tcpProxy = tcpProxy;
     }
 
-    public async Task ExecuteAsync(CancellationTokenSource tokenSource)
+    public async Task<List<TestOutcome>> ExecuteAsync(CancellationTokenSource tokenSource)
     {
         var token = tokenSource.Token;
         // ignore interactive
@@ -38,11 +38,12 @@ public class Launcher
         {
             // Each request honors the token (which carries the overall timeout) and reports its own result,
             // so waiting for all of them never hangs and every output file gets its End Test line.
-            await Task.WhenAll(requests.Select(r => r.ExecuteAsync(token)));
+            var outcomes = await Task.WhenAll(requests.Select(r => r.ExecuteAsync(token)));
             if (token.IsCancellationRequested)
             {
                 Console.WriteLine("Timeout reached! Remaining requests were cancelled.");
             }
+            return outcomes.ToList();
         }
         finally
         {
